@@ -1,0 +1,9 @@
+[package]
+name = "explorer_nico"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+common-game = "3.0.0"
+crossbeam-channel = "0.5.15"
+dummy_explorer = {git = "https://github.com/ImmutableCosmicBorrow/dummy_explorer/", branch = "development"}
