@@ -3,6 +3,14 @@
 version = 4
 
 [[package]]
+name = "common-explorer"
+version = "0.2.0"
+source = "git+https://github.com/ImmutableCosmicBorrow/common-explorer/#21c9211a9ce6fde3a1a6cfa4fb80a3b740c68187"
+dependencies = [
+ "common-game",
+]
+
+[[package]]
 name = "common-game"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -33,14 +41,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 
 [[package]]
-name = "dummy_explorer"
-version = "0.2.0"
-source = "git+https://github.com/ImmutableCosmicBorrow/dummy_explorer/?branch=development#ce53932865ad94c92e94bca691bd1594d058d87c"
-dependencies = [
- "common-game",
-]
-
-[[package]]
 name = "enum-as-inner"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -56,9 +56,9 @@ dependencies = [
 name = "explorer_nico"
 version = "0.1.0"
 dependencies = [
+ "common-explorer",
  "common-game",
  "crossbeam-channel",
- "dummy_explorer",
 ]
 
 [[package]]
