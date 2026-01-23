@@ -112,8 +112,6 @@ impl ExplorerAI for Explorer {
                 .recv_timeout(Duration::from_millis(100))
             {
                 self.handle_planet_message(message)?;
-            } else {
-                todo!()
             }
         }
     }
