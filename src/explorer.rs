@@ -28,7 +28,7 @@ pub struct Explorer {
 }
 
 impl Explorer {
-    fn new(
+    #[must_use] pub fn new(
         id: ID,
         tx_explorer_to_orchestrator: Sender<ExplorerToOrchestrator<ExplorerBagContent>>,
         rx_orchestrator_to_explorer: Receiver<OrchestratorToExplorer>,
