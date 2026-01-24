@@ -88,7 +88,10 @@ impl Explorer {
             let message = self.orchestrator_receiver.recv();
 
             match message {
-                Ok(OrchestratorToExplorer::StartExplorerAI) => return Ok(false),
+                Ok(OrchestratorToExplorer::StartExplorerAI) => {
+                    self.to_orchestrator(ExplorerToOrchestrator::StartExplorerAIResult {explorer_id : self.id})?;
+                    return Ok(false)
+                },
                 Ok(OrchestratorToExplorer::KillExplorer) => {
                     self.to_orchestrator(ExplorerToOrchestrator::KillExplorerResult {
                         explorer_id: self.id,
