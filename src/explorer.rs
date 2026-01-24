@@ -1,5 +1,7 @@
+use crate::payload;
 use common_explorer::{ExplorerAI, ExplorerBag, ExplorerBagContent};
 use common_game::components::resource::{BasicResourceType, ComplexResourceType};
+use common_game::logging::{ActorType, Channel, EventType};
 use common_game::protocols::orchestrator_explorer::{
     ExplorerToOrchestrator, OrchestratorToExplorer, OrchestratorToExplorerKind,
 };
@@ -28,7 +30,8 @@ pub struct Explorer {
 }
 
 impl Explorer {
-    #[must_use] pub fn new(
+    #[must_use]
+    pub fn new(
         id: ID,
         tx_explorer_to_orchestrator: Sender<ExplorerToOrchestrator<ExplorerBagContent>>,
         rx_orchestrator_to_explorer: Receiver<OrchestratorToExplorer>,
@@ -51,12 +54,29 @@ impl Explorer {
         &self,
         msg: ExplorerToOrchestrator<ExplorerBagContent>,
     ) -> Result<(), String> {
+        self.log_msg_to(
+            Channel::Trace,
+            EventType::MessageExplorerToOrchestrator,
+            (ActorType::Orchestrator, 0u32),
+            payload!(
+                message : format!("{msg:?}")
+            ),
+        );
         self.orchestrator_sender
             .send(msg)
             .map_err(|err| err.to_string())
     }
     pub(crate) fn to_planet(&self, msg: ExplorerToPlanet) -> Result<(), String> {
         if let Some(ref sender) = self.planet_sender {
+            self.log_msg_to(
+                Channel::Trace,
+                EventType::MessageExplorerToPlanet,
+                (ActorType::Planet, self.current_planet_id.unwrap()),
+                payload!(
+                    message : format!("{msg:?}")
+                ),
+            );
+
             sender.send(msg).map_err(|err| err.to_string())
         } else {
             Err("Planet sender is None".into())
