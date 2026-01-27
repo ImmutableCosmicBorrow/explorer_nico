@@ -9,6 +9,7 @@ use common_game::protocols::planet_explorer::{ExplorerToPlanet, PlanetToExplorer
 use common_game::utils::ID;
 use crossbeam_channel::{Receiver, Sender};
 use std::collections::{HashMap, HashSet};
+use std::thread;
 use std::time::Duration;
 /*
 pub(crate) struct PlanetStats {
@@ -27,7 +28,7 @@ pub struct Explorer {
     pub(crate) pending: Vec<OrchestratorToExplorerKind>,
     pub(crate) planets_supported_resources: HashMap<ID, HashSet<BasicResourceType>>,
     pub(crate) planets_supported_combinations: HashMap<ID, HashSet<ComplexResourceType>>,
-    game_step : Duration
+    game_step: Duration,
 }
 
 impl Explorer {
@@ -50,7 +51,7 @@ impl Explorer {
             pending: Vec::new(),
             planets_supported_resources: HashMap::new(),
             planets_supported_combinations: HashMap::new(),
-            game_step
+            game_step,
         }
     }
     pub(crate) fn to_orchestrator(
@@ -92,9 +93,11 @@ impl Explorer {
 
             match message {
                 Ok(OrchestratorToExplorer::StartExplorerAI) => {
-                    self.to_orchestrator(ExplorerToOrchestrator::StartExplorerAIResult {explorer_id : self.id})?;
-                    return Ok(false)
-                },
+                    self.to_orchestrator(ExplorerToOrchestrator::StartExplorerAIResult {
+                        explorer_id: self.id,
+                    })?;
+                    return Ok(false);
+                }
                 Ok(OrchestratorToExplorer::KillExplorer) => {
                     self.to_orchestrator(ExplorerToOrchestrator::KillExplorerResult {
                         explorer_id: self.id,
@@ -139,6 +142,7 @@ impl ExplorerAI for Explorer {
             {
                 self.handle_planet_message(message)?;
             }
+            thread::sleep(self.game_step);
         }
     }
 }
