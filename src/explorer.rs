@@ -34,6 +34,8 @@ impl Explorer {
     #[must_use]
     pub fn new(
         id: ID,
+        _planet_id : ID,
+        _planet_sender : Sender<ExplorerToPlanet>,
         tx_explorer_to_orchestrator: Sender<ExplorerToOrchestrator<ExplorerBagContent>>,
         rx_orchestrator_to_explorer: Receiver<OrchestratorToExplorer>,
         rx_planet_to_explorer: Receiver<PlanetToExplorer>,
