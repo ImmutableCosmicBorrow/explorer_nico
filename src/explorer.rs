@@ -27,6 +27,7 @@ pub struct Explorer {
     pub(crate) pending: Vec<OrchestratorToExplorerKind>,
     pub(crate) planets_supported_resources: HashMap<ID, HashSet<BasicResourceType>>,
     pub(crate) planets_supported_combinations: HashMap<ID, HashSet<ComplexResourceType>>,
+    game_step : Duration
 }
 
 impl Explorer {
@@ -36,6 +37,7 @@ impl Explorer {
         tx_explorer_to_orchestrator: Sender<ExplorerToOrchestrator<ExplorerBagContent>>,
         rx_orchestrator_to_explorer: Receiver<OrchestratorToExplorer>,
         rx_planet_to_explorer: Receiver<PlanetToExplorer>,
+        game_step: Duration,
     ) -> Self {
         Explorer {
             id,
@@ -48,6 +50,7 @@ impl Explorer {
             pending: Vec::new(),
             planets_supported_resources: HashMap::new(),
             planets_supported_combinations: HashMap::new(),
+            game_step
         }
     }
     pub(crate) fn to_orchestrator(
