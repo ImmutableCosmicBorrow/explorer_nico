@@ -19,35 +19,40 @@ pub(crate) struct PlanetStats {
 pub struct Explorer {
     pub(crate) id: ID,
     pub(crate) bag: ExplorerBag,
-    pub(crate) current_planet_id: Option<ID>,
+    pub(crate) current_planet_id: ID,
     orchestrator_sender: Sender<ExplorerToOrchestrator<ExplorerBagContent>>,
     orchestrator_receiver: Receiver<OrchestratorToExplorer>,
-    pub(crate) planet_sender: Option<Sender<ExplorerToPlanet>>,
+    pub(crate) planet_sender: Sender<ExplorerToPlanet>,
     planet_receiver: Receiver<PlanetToExplorer>,
     pub(crate) pending: Vec<OrchestratorToExplorerKind>,
     pub(crate) planets_supported_resources: HashMap<ID, HashSet<BasicResourceType>>,
     pub(crate) planets_supported_combinations: HashMap<ID, HashSet<ComplexResourceType>>,
+    game_step : Duration,
 }
 
 impl Explorer {
     #[must_use]
     pub fn new(
         id: ID,
+        planet_id : ID,
+        planet_sender: Sender<ExplorerToPlanet>,
         tx_explorer_to_orchestrator: Sender<ExplorerToOrchestrator<ExplorerBagContent>>,
         rx_orchestrator_to_explorer: Receiver<OrchestratorToExplorer>,
         rx_planet_to_explorer: Receiver<PlanetToExplorer>,
+        game_step : Duration,
     ) -> Self {
         Explorer {
             id,
             bag: ExplorerBag::new(),
-            current_planet_id: None,
+            current_planet_id: planet_id,
             orchestrator_sender: tx_explorer_to_orchestrator,
             orchestrator_receiver: rx_orchestrator_to_explorer,
-            planet_sender: None,
+            planet_sender,
             planet_receiver: rx_planet_to_explorer,
             pending: Vec::new(),
             planets_supported_resources: HashMap::new(),
             planets_supported_combinations: HashMap::new(),
+            game_step,
         }
     }
     pub(crate) fn to_orchestrator(
@@ -67,20 +72,15 @@ impl Explorer {
             .map_err(|err| err.to_string())
     }
     pub(crate) fn to_planet(&self, msg: ExplorerToPlanet) -> Result<(), String> {
-        if let Some(ref sender) = self.planet_sender {
-            self.log_msg_to(
-                Channel::Trace,
-                EventType::MessageExplorerToPlanet,
-                (ActorType::Planet, self.current_planet_id.unwrap()),
-                payload!(
+        self.log_msg_to(
+            Channel::Trace,
+            EventType::MessageExplorerToPlanet,
+            (ActorType::Planet, self.current_planet_id),
+            payload!(
                     message : format!("{msg:?}")
                 ),
-            );
-
-            sender.send(msg).map_err(|err| err.to_string())
-        } else {
-            Err("Planet sender is None".into())
-        }
+        );
+        self.planet_sender.send(msg).map_err(|err| err.to_string())
     }
 
     pub(crate) fn wait_for_start(&self) -> Result<bool, String> {
@@ -107,8 +107,10 @@ impl Explorer {
     }
 
     pub(crate) fn move_to(&mut self, planet_id: ID, new_sender: Option<Sender<ExplorerToPlanet>>) {
-        self.current_planet_id = Some(planet_id);
-        self.planet_sender = new_sender;
+        if let Some(sender) = new_sender {
+            self.current_planet_id = planet_id;
+            self.planet_sender = sender;
+        }
     }
 }
 
@@ -134,7 +136,7 @@ impl ExplorerAI for Explorer {
                 .planet_receiver
                 .recv_timeout(Duration::from_millis(100))
             {
-                self.handle_planet_message(message)?;
+                self.handle_planet_message(message);
             }
         }
     }

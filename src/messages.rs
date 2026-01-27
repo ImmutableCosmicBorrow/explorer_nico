@@ -12,20 +12,18 @@ impl Explorer {
     pub(crate) fn handle_planet_message(
         &mut self,
         message: PlanetToExplorer,
-    ) -> Result<(), String> {
+    ){
         match message {
             PlanetToExplorer::SupportedResourceResponse { resource_list } => {
                 self.planets_supported_resources.insert(
-                    self.current_planet_id
-                        .ok_or("Explorer is not in a Planet".to_string())?,
+                    self.current_planet_id,
                     resource_list,
                 );
                 // TODO: if pending request from orchestrator, send back
             }
             PlanetToExplorer::SupportedCombinationResponse { combination_list } => {
                 self.planets_supported_combinations.insert(
-                    self.current_planet_id
-                        .ok_or("Explorer is not in a Planet".to_string())?,
+                    self.current_planet_id,
                     combination_list,
                 );
                 // TODO: if pending request from orchestrator, send back
@@ -52,8 +50,6 @@ impl Explorer {
             }
             PlanetToExplorer::Stopped => {}
         }
-
-        Ok(())
     }
     pub(crate) fn handle_orchestrator_message(
         &mut self,
@@ -94,8 +90,7 @@ impl Explorer {
                 self.to_orchestrator(ExplorerToOrchestrator::CurrentPlanetResult {
                     explorer_id: self.id,
                     planet_id: self
-                        .current_planet_id
-                        .ok_or("Explorer is not in a Planet".to_string())?,
+                        .current_planet_id,
                 })?;
                 Ok(false)
             }
@@ -141,8 +136,7 @@ impl Explorer {
     fn handle_supported_resources_request(&mut self) -> Result<bool, String> {
         if let Some(list) = self.planets_supported_resources.get(
             &self
-                .current_planet_id
-                .ok_or("Explorer is not in a Planet".to_string())?,
+                .current_planet_id,
         ) {
             self.to_orchestrator(SupportedResourceResult {
                 explorer_id: self.id,
@@ -161,8 +155,7 @@ impl Explorer {
     fn handle_supported_combination_request(&mut self) -> Result<bool, String> {
         if let Some(list) = self.planets_supported_combinations.get(
             &self
-                .current_planet_id
-                .ok_or("Explorer is not in a Planet".to_string())?,
+                .current_planet_id,
         ) {
             self.to_orchestrator(SupportedCombinationResult {
                 explorer_id: self.id,
