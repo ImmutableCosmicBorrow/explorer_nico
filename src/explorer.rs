@@ -66,6 +66,7 @@ impl Explorer {
         &self,
         msg: ExplorerToOrchestrator<ExplorerBagContent>,
     ) -> Result<(), String> {
+        thread::sleep(Duration::from_secs(1));
         self.log_msg_to(
             Channel::Trace,
             EventType::MessageExplorerToOrchestrator,
