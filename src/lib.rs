@@ -1,5 +1,5 @@
 pub mod explorer;
+mod genetics;
 mod logging_utils;
-mod messages;
 
 pub use explorer::Explorer;
