@@ -1,3 +1,4 @@
+use crate::genetics::Intention;
 use crate::payload;
 use common_explorer::{ExplorerAI, ExplorerBag, ExplorerBagContent};
 use common_game::components::resource::{BasicResourceType, ComplexResourceType, GenericResource};
@@ -7,12 +8,11 @@ use common_game::protocols::orchestrator_explorer::{
 };
 use common_game::protocols::planet_explorer::{ExplorerToPlanet, PlanetToExplorer};
 use common_game::utils::ID;
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, select};
+use rand::RngExt;
 use std::collections::{HashMap, HashSet};
 use std::thread;
-use std::time::Duration;
-use rand::RngExt;
-use crate::genetics::Intention;
+use std::time::{Duration, Instant};
 /*
 pub(crate) struct PlanetStats {
     supported_resources: HashSet<BasicResourceType>,
@@ -21,7 +21,7 @@ pub(crate) struct PlanetStats {
 */
 pub struct Explorer {
     genome: Vec<u8>,
-    gene_step : usize,
+    gene_step: usize,
     id: ID,
     bag: ExplorerBag,
     current_planet_id: Option<ID>,
@@ -32,8 +32,8 @@ pub struct Explorer {
     planets_supported_resources: HashMap<ID, HashSet<BasicResourceType>>,
     planets_supported_combinations: HashMap<ID, HashSet<ComplexResourceType>>,
     game_step: Duration,
-    planet_neighbors : Vec<ID>,
-    manual_mode : bool,
+    planet_neighbors: Vec<ID>,
+    manual_mode: bool,
 }
 
 impl Explorer {
@@ -69,7 +69,7 @@ impl Explorer {
             planets_supported_resources: HashMap::new(),
             planets_supported_combinations: HashMap::new(),
             game_step,
-            planet_neighbors : Vec::new(),
+            planet_neighbors: Vec::new(),
             manual_mode: true,
         }
     }
@@ -124,7 +124,10 @@ impl Explorer {
                 );
                 // Send to Orchestrator only if it is in manual mode
                 if self.manual_mode {
-                    self.to_orchestrator(ExplorerToOrchestrator::SupportedResourceResult {explorer_id : self.id, supported_resources : resource_list})?;
+                    self.to_orchestrator(ExplorerToOrchestrator::SupportedResourceResult {
+                        explorer_id: self.id,
+                        supported_resources: resource_list,
+                    })?;
                 }
             }
             PlanetToExplorer::SupportedCombinationResponse { combination_list } => {
@@ -135,21 +138,35 @@ impl Explorer {
                 );
                 // Send to Orchestrator only if it is in manual mode
                 if self.manual_mode {
-                    self.to_orchestrator(ExplorerToOrchestrator::SupportedCombinationResult {explorer_id : self.id, combination_list})?;
+                    self.to_orchestrator(ExplorerToOrchestrator::SupportedCombinationResult {
+                        explorer_id: self.id,
+                        combination_list,
+                    })?;
                 }
             }
             PlanetToExplorer::GenerateResourceResponse { resource } => {
-                let generated = if resource.is_some() { Ok(())} else { Err("Planet did not create resource".into()) };
+                let generated = if resource.is_some() {
+                    Ok(())
+                } else {
+                    Err("Planet did not create resource".into())
+                };
                 if let Some(r) = resource {
                     self.bag.insert(GenericResource::BasicResources(r));
                 }
                 // Send to Orchestrator only if it is in manual mode
                 if self.manual_mode {
-                    self.to_orchestrator(ExplorerToOrchestrator::GenerateResourceResponse {explorer_id : self.id, generated })?;
+                    self.to_orchestrator(ExplorerToOrchestrator::GenerateResourceResponse {
+                        explorer_id: self.id,
+                        generated,
+                    })?;
                 }
             }
             PlanetToExplorer::CombineResourceResponse { complex_response } => {
-                let generated = if complex_response.is_ok() { Ok(())} else { Err("Planet did not create resource".into()) };
+                let generated = if complex_response.is_ok() {
+                    Ok(())
+                } else {
+                    Err("Planet did not create resource".into())
+                };
                 match complex_response {
                     Ok(r) => {
                         self.bag.insert(GenericResource::ComplexResources(r));
@@ -162,11 +179,13 @@ impl Explorer {
                 }
                 // Send to Orchestrator only if it is in manual mode
                 if self.manual_mode {
-                    self.to_orchestrator(ExplorerToOrchestrator::GenerateResourceResponse {explorer_id : self.id, generated })?;
+                    self.to_orchestrator(ExplorerToOrchestrator::GenerateResourceResponse {
+                        explorer_id: self.id,
+                        generated,
+                    })?;
                 }
             }
-            PlanetToExplorer::AvailableEnergyCellResponse { .. }
-            | PlanetToExplorer::Stopped => {}
+            PlanetToExplorer::AvailableEnergyCellResponse { .. } | PlanetToExplorer::Stopped => {}
         }
 
         Ok(())
@@ -203,6 +222,13 @@ impl Explorer {
                 Ok(true)
             }
             OrchestratorToExplorer::StopExplorerAI => {
+                Self::log_internal(
+                    Channel::Info,
+                    payload!(
+                        action : "Nico Explorer switched to manual mode",
+                        explorer_id : self.id,
+                    ),
+                );
                 self.manual_mode = true;
                 Ok(false)
             }
@@ -312,27 +338,37 @@ impl Explorer {
         }
     }
 
-    fn decide_generation(&self, gene : u8) -> Option<BasicResourceType> {
-        let all_supported  = &self.planets_supported_resources;
+    fn decide_generation(&self, gene: u8) -> Option<BasicResourceType> {
+        let all_supported = &self.planets_supported_resources;
 
-        if let Some(planet_id) = self.current_planet_id && let Some(resources) = all_supported.get(&planet_id){
-            Some(*resources.iter().collect::<Vec<&BasicResourceType>>()[gene as usize & resources.len()])
+        if let Some(planet_id) = self.current_planet_id
+            && let Some(resources) = all_supported.get(&planet_id)
+        {
+            Some(
+                *resources.iter().collect::<Vec<&BasicResourceType>>()
+                    [gene as usize & resources.len()],
+            )
         } else {
             None
         }
     }
 
-    fn decide_combination(&self, gene : u8) -> Option<ComplexResourceType> {
+    fn decide_combination(&self, gene: u8) -> Option<ComplexResourceType> {
         let all_supported = &self.planets_supported_combinations;
 
-        if let Some(planet_id) = self.current_planet_id && let Some(resources) = all_supported.get(&planet_id){
-            Some(*resources.iter().collect::<Vec<&ComplexResourceType>>()[gene as usize & resources.len()])
+        if let Some(planet_id) = self.current_planet_id
+            && let Some(resources) = all_supported.get(&planet_id)
+        {
+            Some(
+                *resources.iter().collect::<Vec<&ComplexResourceType>>()
+                    [gene as usize & resources.len()],
+            )
         } else {
             None
         }
     }
 
-    fn decide_move(&self, gene : u8) -> Option<ID> {
+    fn decide_move(&self, gene: u8) -> Option<ID> {
         let len = self.planet_neighbors.len();
         if len > 0 {
             Some(self.planet_neighbors[gene as usize % len])
@@ -360,32 +396,36 @@ impl Explorer {
             channel,
             payload,
         )
-            .emit();
+        .emit();
     }
 }
 
 impl ExplorerAI for Explorer {
     fn run(&mut self) -> Result<(), String> {
+        let timeout = Duration::from_millis(100);
+
         loop {
-            if let Ok(message) = self
-                .orchestrator_receiver
-                .recv_timeout(Duration::from_millis(100))
-            {
-                let kill = self.handle_orchestrator_message(message)?;
-                if kill {
-                    return Ok(());
+            let start = Instant::now();
+
+            select! {
+                recv(self.orchestrator_receiver) -> msg => {
+                    if let Ok(msg) = msg {
+                        self.handle_orchestrator_message(msg)?;
+                    }
+                }
+                recv(self.planet_receiver) -> msg => {
+                    if let Ok(msg) = msg {
+                        self.handle_planet_message(msg)?;
+                    }
+                }
+                default(timeout) => {
+                    todo!()
                 }
             }
 
-            if let Ok(message) = self
-                .planet_receiver
-                .recv_timeout(Duration::from_millis(100))
-            {
-                self.handle_planet_message(message)?;
-            }
-            thread::sleep(self.game_step);
+            let elapsed = start - Instant::now();
+
+            thread::sleep(self.game_step - elapsed);
         }
     }
-
-
 }
