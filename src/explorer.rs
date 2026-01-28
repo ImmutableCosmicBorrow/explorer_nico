@@ -40,6 +40,14 @@ impl Explorer {
         rx_planet_to_explorer: Receiver<PlanetToExplorer>,
         game_step: Duration,
     ) -> Self {
+        Self::log_internal(
+            Channel::Debug,
+            payload!(
+                action : "Nico ExplorerAI ready",
+                explorer_id : id,
+            ),
+        );
+
         Explorer {
             id,
             bag: ExplorerBag::new(),

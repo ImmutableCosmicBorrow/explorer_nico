@@ -1,5 +1,6 @@
-use crate::Explorer;
+use crate::{Explorer, payload};
 use common_game::components::resource::GenericResource;
+use common_game::logging::Channel;
 use common_game::protocols::orchestrator_explorer::ExplorerToOrchestrator::{
     SupportedCombinationResult, SupportedResourceResult,
 };
@@ -64,6 +65,13 @@ impl Explorer {
                 self.to_orchestrator(ExplorerToOrchestrator::StartExplorerAIResult {
                     explorer_id: self.id,
                 })?;
+                Self::log_internal(
+                    Channel::Info,
+                    payload!(
+                        action : "Nico ExplorerAI started correctly",
+                        explorer_id : self.id
+                    ),
+                );
                 Ok(false)
             }
             OrchestratorToExplorer::ResetExplorerAI => {
@@ -88,6 +96,14 @@ impl Explorer {
                 sender_to_new_planet,
             } => {
                 self.move_to(planet_id, sender_to_new_planet);
+                Self::log_internal(
+                    Channel::Debug,
+                    payload!(
+                        action : "Nico ExplorerAI correctly moved to Planet",
+                        explorer_id : self.id,
+                        destination_planet : planet_id,
+                    ),
+                );
                 Ok(false)
             }
             OrchestratorToExplorer::CurrentPlanetRequest => {
