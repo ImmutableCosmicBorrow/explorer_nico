@@ -47,6 +47,7 @@ impl Explorer {
             payload!(
                 action : "Nico ExplorerAI ready",
                 explorer_id : id,
+                genome : format!("{genome:?}"),
             ),
         );
 
@@ -154,6 +155,7 @@ impl Explorer {
                         payload!(
                             action : "Nico generated a basic resource",
                             basic_resource : format!("{:?}", r.get_type()),
+                            others_in_bag : format!("{:?}", self.bag.to_content()),
                         ),
                     );
                     self.bag.insert(GenericResource::BasicResources(r));
@@ -177,6 +179,7 @@ impl Explorer {
                             payload!(
                                 action : "Nico crafted a complex resource",
                                 complex_resource : format!("{:?}",r.get_type()),
+                                others_in_bag : format!("{:?}", self.bag.to_content()),
                             ),
                         );
                         self.bag.insert(GenericResource::ComplexResources(r));
