@@ -104,6 +104,7 @@ impl Explorer {
                         destination_planet : planet_id,
                     ),
                 );
+                self.to_orchestrator(ExplorerToOrchestrator::MovedToPlanetResult {explorer_id : self.id, planet_id})?;
                 Ok(false)
             }
             OrchestratorToExplorer::CurrentPlanetRequest => {
