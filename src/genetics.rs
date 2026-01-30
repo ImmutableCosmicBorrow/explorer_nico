@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+use std::ops::Mul;
+use std::time::{Duration, Instant};
 use crate::planet_stats::PlanetStats;
 use common_explorer::{ExplorerBag, ExplorerBagContent};
 use common_game::components::resource::{
@@ -12,7 +15,7 @@ const COMPLEX_RESOURCE_WEIGHT: u32 = 60;
 #[derive(Debug)]
 pub(crate) enum Intention {
     Generate(Option<BasicResourceType>),
-    Combine(Option<ComplexResourceType>),
+    Combine(Option<ComplexResourceRequest>),
     Move(Option<ID>),
 }
 
@@ -20,22 +23,30 @@ pub(crate) struct Brain {
     genome: Vec<u8>,
     gene_step: usize,
     performance: u32,
-    move_chance_increment: u8,
+    resources_amount: u8,
     bag: ExplorerBag,
+    move_intention: bool,
+    blocked: bool,
+    idle_timeout : Duration,
+    last_success : Instant,
 }
 
 impl Brain {
-    pub(crate) fn new() -> Self {
-        let mut rng = rand::rng();
-        let genome: Vec<u8> = (0..20).map(|_| rng.random_range(0..32)).collect();
-        //let genome = vec![11, 9, 11, 8, 2, 28, 2, 14, 24, 6, 8, 26, 31, 2, 9, 23, 24, 29, 0, 16];
+    pub(crate) fn new(game_step : Duration) -> Self {
+        //let mut rng = rand::rng();
+        //let genome: Vec<u8> = (0..20).map(|_| rng.random_range(0..64)).collect();
+        let genome = vec![59, 46, 53, 4, 2, 38, 9, 51, 61, 22, 25, 44, 12, 17, 42, 38, 37, 59, 32, 40];
 
         Self {
             genome,
             gene_step: 0,
             performance: 0,
-            move_chance_increment: 0,
+            resources_amount: 0,
             bag: ExplorerBag::new(),
+            move_intention: false,
+            blocked: false,
+            idle_timeout : game_step.mul(20),
+            last_success: Instant::now(),
         }
     }
     pub(crate) fn get_genome(&self) -> Vec<&u8> {
@@ -44,16 +55,19 @@ impl Brain {
     pub(crate) fn get_performance(&self) -> u32 {
         self.performance
     }
-
     pub(crate) fn insert_resource(&mut self, resource: GenericResource) {
         self.performance += match resource {
-            GenericResource::BasicResources(_) => BASIC_RESOURCE_WEIGHT,
-            GenericResource::ComplexResources(_) => COMPLEX_RESOURCE_WEIGHT,
+            GenericResource::BasicResources(_) => {
+                self.resources_amount += 1;
+                BASIC_RESOURCE_WEIGHT
+            }
+            GenericResource::ComplexResources(_) => {
+                self.resources_amount -= 1;
+                COMPLEX_RESOURCE_WEIGHT
+            }
         };
-        if self.move_chance_increment > 0 {
-            self.move_chance_increment -= 1;
-        }
         self.bag.insert(resource);
+        self.last_success = Instant::now();
     }
     pub(crate) fn reinsert_resource(&mut self, resource: GenericResource) {
         self.bag.insert(resource);
@@ -69,10 +83,16 @@ impl Brain {
         self.bag.create_combination_request(complex)
     }
     pub(crate) fn on_move(&mut self) {
-        self.move_chance_increment = 0;
+        self.move_intention = false;
     }
     pub(crate) fn on_no_action(&mut self) {
-        self.move_chance_increment += 1;
+        self.move_intention = true;
+    }
+    pub(crate) fn got_blocked(&mut self) {
+        self.blocked = true;
+    }
+    pub(crate) fn unblock(&mut self){
+        self.blocked = false;
     }
 }
 
@@ -82,10 +102,26 @@ impl Brain {
         let gene = self.genome[self.gene_step % self.genome.len()];
         self.gene_step += 1;
 
-        match gene % (10 + (self.move_chance_increment)) {
-            0..5 => Intention::Generate(Brain::decide_generation(gene, planet_stats)),
-            5..8 => Intention::Combine(Brain::decide_combination(gene, planet_stats)),
-            _ => Intention::Move(self.decide_move(gene, planet_stats)),
+        // If last action was not successful, the Explorer will want to move
+        // Also better to move if too much time elapsed since last successful action
+        if !self.blocked && (self.move_intention || (self.last_success.elapsed() > self.idle_timeout)) {
+            return Intention::Move(Brain::decide_move(gene, planet_stats))
+        }
+
+        // Check if Planet has any combination matching our resources
+        let matches = self.combinations_matchings(planet_stats.combinations());
+
+        // Adding self.blocked prevents a Move Intention if Explorer is blocked here
+        let mut action = gene % (10 + self.resources_amount) + u8::from(self.blocked);
+
+        // If #matches is zero, don't try to combine
+        if action > 10 && matches == 0{
+            action = 1 + (gene % 10);
+        }
+        match action {
+            0 => Intention::Move(Brain::decide_move(gene, planet_stats)),
+            1..11 => Intention::Generate(Brain::decide_generation(gene, planet_stats)),
+            _ => Intention::Combine(self.decide_combination(gene, planet_stats)),
         }
     }
 
@@ -98,24 +134,41 @@ impl Brain {
                     [gene as usize % resources.len()]
             })
     }
-    fn decide_combination(gene: u8, planet_stats: &mut PlanetStats) -> Option<ComplexResourceType> {
-        planet_stats
-            .combinations()
-            .filter(|resources| !resources.is_empty())
-            .map(|resources| {
-                *resources.iter().collect::<Vec<&ComplexResourceType>>()
-                    [gene as usize % resources.len()]
-            })
+    fn decide_combination(
+        &mut self,
+        gene: u8,
+        planet_stats: &mut PlanetStats,
+    ) -> Option<ComplexResourceRequest> {
+        if let Some(combinations) = planet_stats.combinations() {
+            let possible = combinations
+                .iter()
+                .filter(|&&complex| self.bag.can_craft(complex))
+                .collect::<Vec<&ComplexResourceType>>();
+            if possible.is_empty() {
+                None
+            } else {
+                let index = gene as usize % possible.len();
+                let chosen = possible[index];
+                self.bag.create_combination_request(*chosen)
+            }
+        } else {
+            None
+        }
     }
-    fn decide_move(&mut self, gene: u8, planet_stats: &mut PlanetStats) -> Option<ID> {
+    fn decide_move(gene: u8, planet_stats: &mut PlanetStats) -> Option<ID> {
         let id = planet_stats
             .neighbors()
             .filter(|neighbors| !neighbors.is_empty())
             .map(|neighbors| neighbors[gene as usize % neighbors.len()]);
         planet_stats.remove_neighbor(id);
-        if id.is_some() {
-            self.move_chance_increment = 0;
-        }
         id
+    }
+
+    fn combinations_matchings(&self, combinations : Option<&HashSet<ComplexResourceType>>) -> usize {
+        if let Some(combinations) = combinations {
+            combinations.iter().filter(|&&complex| self.bag.can_craft(complex)).count()
+        } else {
+            0
+        }
     }
 }

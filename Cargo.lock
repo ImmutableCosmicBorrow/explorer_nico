@@ -34,7 +34,7 @@ dependencies = [
 [[package]]
 name = "common-explorer"
 version = "0.2.0"
-source = "git+https://github.com/ImmutableCosmicBorrow/common-explorer/#68c3c3721437f5c199302bf1234ee8b29b0968ba"
+source = "git+https://github.com/ImmutableCosmicBorrow/common-explorer/#94e0860e9cbd10641f930cd41040b3bf0089a317"
 dependencies = [
  "common-game",
 ]
