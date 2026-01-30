@@ -1,33 +1,27 @@
-use crate::genetics::Intention;
+use crate::genetics::{Brain, Intention};
+use crate::logging_utils::{log_debug, log_error, log_info, log_trace, log_warning};
 use crate::payload;
 use crate::planet_stats::PlanetStats;
-use common_explorer::{ExplorerAI, ExplorerBag, ExplorerBagContent};
-use common_game::components::resource::{BasicResourceType, ComplexResourceType, GenericResource};
-use common_game::logging::{ActorType, Channel, EventType, LogEvent, Participant, Payload};
+use common_explorer::{ExplorerAI, ExplorerBagContent};
+use common_game::components::resource::GenericResource;
 use common_game::protocols::orchestrator_explorer::{
     ExplorerToOrchestrator, OrchestratorToExplorer,
 };
 use common_game::protocols::planet_explorer::{ExplorerToPlanet, PlanetToExplorer};
 use common_game::utils::ID;
 use crossbeam_channel::{Receiver, Sender, select};
-use rand::RngExt;
 use std::thread;
 use std::time::{Duration, Instant};
 
 pub struct Explorer {
-    genome: Vec<u8>,
-    gene_step: usize,
     id: ID,
-    bag: ExplorerBag,
-    current_planet_id: Option<ID>,
+    brain: Brain,
+    planet_stats: PlanetStats,
     orchestrator_sender: Sender<ExplorerToOrchestrator<ExplorerBagContent>>,
     orchestrator_receiver: Receiver<OrchestratorToExplorer>,
-    planet_sender: Option<Sender<ExplorerToPlanet>>,
     planet_receiver: Receiver<PlanetToExplorer>,
-    planet_stats: PlanetStats,
     game_step: Duration,
     manual_mode: bool,
-    move_chance : u8,
 }
 
 impl Explorer {
@@ -39,88 +33,80 @@ impl Explorer {
         rx_planet_to_explorer: Receiver<PlanetToExplorer>,
         game_step: Duration,
     ) -> Self {
-        let mut rng = rand::rng();
-        let genome = (0..20).map(|_| rng.random_range(0..32)).collect();
-
-        Self::log_internal(
-            Channel::Debug,
-            payload!(
-                action : "Nico ExplorerAI ready",
-                explorer_id : id,
-                genome : format!("{genome:?}"),
-            ),
+        let brain = Brain::new();
+        log_debug(
+            payload!(action : "Nico ExplorerAI ready", explorer_id : id, genome : format!("{:?}", brain.get_genome())),
         );
-
         Explorer {
-            genome,
-            gene_step: 0,
             id,
-            bag: ExplorerBag::new(),
-            current_planet_id: None,
+            brain,
             orchestrator_sender: tx_explorer_to_orchestrator,
             orchestrator_receiver: rx_orchestrator_to_explorer,
-            planet_sender: None,
             planet_receiver: rx_planet_to_explorer,
             planet_stats: PlanetStats::new(),
             game_step,
             manual_mode: true,
-            move_chance : 0,
         }
     }
     pub(crate) fn to_orchestrator(
         &self,
         msg: ExplorerToOrchestrator<ExplorerBagContent>,
     ) -> Result<(), String> {
-        thread::sleep(Duration::from_secs(1));
-        self.log_msg_to(
-            Channel::Trace,
-            EventType::MessageExplorerToOrchestrator,
-            (ActorType::Orchestrator, 0u32),
-            payload!(
-                message : format!("{msg:?}")
-            ),
-        );
-        self.orchestrator_sender
+        let res = self
+            .orchestrator_sender
             .send(msg)
-            .map_err(|err| err.to_string())
+            .map_err(|err| err.to_string());
+        if res.is_err() {
+            log_error(payload!(
+                action : "Nico got an error while trying to send to the Orchestrator",
+                explorer_id : self.id
+            ));
+        }
+        res
     }
     pub(crate) fn to_planet(&self, msg: ExplorerToPlanet) -> Result<(), String> {
-        if let Some(ref sender) = self.planet_sender {
-            self.log_msg_to(
-                Channel::Trace,
-                EventType::MessageExplorerToPlanet,
-                (ActorType::Planet, self.current_planet_id.unwrap()),
-                payload!(
-                    message : format!("{msg:?}")
-                ),
-            );
-
+        if let Some(ref sender) = self.planet_stats.sender() {
             sender.send(msg).map_err(|err| err.to_string())
         } else {
+            log_warning(
+                payload!(action : "Nico does not have a Planet sender", explorer_id : self.id),
+            );
             Err("Planet sender is None".into())
         }
     }
-    pub(crate) fn move_to(
+    pub(crate) fn try_move_to(
         &mut self,
         planet_id: ID,
         new_sender: Option<Sender<ExplorerToPlanet>>,
-    ) -> Result<(), String> {
-        self.planet_stats = PlanetStats::new();
-        self.current_planet_id = Some(planet_id);
-        self.planet_sender = new_sender;
-        self.move_chance = 0;
+    ) -> Result<bool, String> {
+        // Tell the Orchestrator the result
+        self.to_orchestrator(ExplorerToOrchestrator::MovedToPlanetResult {
+            explorer_id: self.id,
+            planet_id,
+        })?;
 
-        self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
-            explorer_id: self.id,
-        })?;
-        self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
-            explorer_id: self.id,
-        })?;
-        self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
-            explorer_id: self.id,
-            current_planet_id: planet_id,
-        })?;
-        Ok(())
+        // Move only if the sender is Some
+        if let Some(sender) = new_sender {
+            // Reset the Planet stats and update id and sender.
+            self.planet_stats.reset();
+            self.planet_stats.update_id_and_sender(planet_id, sender);
+            self.brain.on_move();
+
+            // Ask Planet for its supported resources and combinations
+            self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
+                explorer_id: self.id,
+            })?;
+            self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
+                explorer_id: self.id,
+            })?;
+            // Ask Orchestrator for neighbors of the current Planet
+            self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
+                explorer_id: self.id,
+                current_planet_id: planet_id,
+            })?;
+        }
+
+        Ok(false)
     }
 
     pub(crate) fn handle_planet_message(
@@ -150,15 +136,11 @@ impl Explorer {
             }
             PlanetToExplorer::GenerateResourceResponse { resource } => {
                 let generated = if let Some(r) = resource {
-                    Self::log_internal(
-                        Channel::Trace,
-                        payload!(
-                            action : "Nico generated a basic resource",
-                            basic_resource : format!("{:?}", r.get_type()),
-                            others_in_bag : format!("{:?}", self.bag.to_content()),
-                        ),
+                    log_debug(
+                        payload!(action : "Nico generated a basic resource", explorer_id : self.id, basic_resource : format!("{:?}", r.get_type()),others_in_bag : format!("{:?}", self.brain.get_bag_content())),
                     );
-                    self.bag.insert(GenericResource::BasicResources(r));
+                    self.brain
+                        .insert_resource(GenericResource::BasicResources(r));
                     Ok(())
                 } else {
                     Err("Planet did not generate resource".into())
@@ -174,20 +156,16 @@ impl Explorer {
             PlanetToExplorer::CombineResourceResponse { complex_response } => {
                 let generated = match complex_response {
                     Ok(r) => {
-                        Self::log_internal(
-                            Channel::Trace,
-                            payload!(
-                                action : "Nico crafted a complex resource",
-                                complex_resource : format!("{:?}",r.get_type()),
-                                others_in_bag : format!("{:?}", self.bag.to_content()),
-                            ),
+                        log_debug(
+                            payload!(action : "Nico generated a complex resource", explorer_id : self.id, basic_resource : format!("{:?}", r.get_type()),others_in_bag : format!("{:?}", self.brain.get_bag_content())),
                         );
-                        self.bag.insert(GenericResource::ComplexResources(r));
+                        self.brain
+                            .insert_resource(GenericResource::ComplexResources(r));
                         Ok(())
                     }
                     Err((_error, r1, r2)) => {
-                        self.bag.insert(r1);
-                        self.bag.insert(r2);
+                        self.brain.reinsert_resource(r1);
+                        self.brain.reinsert_resource(r2);
                         Err("Planet did not create resource".into())
                     }
                 };
@@ -204,74 +182,25 @@ impl Explorer {
 
         Ok(())
     }
-    #[allow(clippy::too_many_lines)]
     pub(crate) fn handle_orchestrator_message(
         &mut self,
         message: OrchestratorToExplorer,
     ) -> Result<bool, String> {
         match message {
-            OrchestratorToExplorer::StartExplorerAI => {
-                self.manual_mode = false;
-                self.to_orchestrator(ExplorerToOrchestrator::StartExplorerAIResult {
-                    explorer_id: self.id,
-                })?;
-                Self::log_internal(
-                    Channel::Info,
-                    payload!(
-                        action : "Nico ExplorerAI correctly started",
-                        explorer_id : self.id
-                    ),
-                );
-                Ok(false)
-            }
-            OrchestratorToExplorer::ResetExplorerAI => {
-                // TODO: actually reset AI
-                self.manual_mode = true;
-                Self::log_internal(
-                    Channel::Info,
-                    payload!(
-                        action : "Nico ExplorerAI correctly resetted",
-                        explorer_id : self.id
-                    ),
-                );
-                self.to_orchestrator(ExplorerToOrchestrator::ResetExplorerAIResult {
-                    explorer_id: self.id,
-                })?;
-                Ok(false)
-            }
-            OrchestratorToExplorer::KillExplorer => {
-                self.to_orchestrator(ExplorerToOrchestrator::KillExplorerResult {
-                    explorer_id: self.id,
-                })?;
-                Ok(true)
-            }
-            OrchestratorToExplorer::StopExplorerAI => {
-                self.manual_mode = true;
-                Self::log_internal(
-                    Channel::Info,
-                    payload!(
-                        action : "Nico Explorer switched to manual mode",
-                        explorer_id : self.id,
-                    ),
-                );
-                Ok(false)
-            }
+            OrchestratorToExplorer::StartExplorerAI => self.start(),
+            OrchestratorToExplorer::ResetExplorerAI => self.reset(),
+            OrchestratorToExplorer::KillExplorer => self.kill(),
+            OrchestratorToExplorer::StopExplorerAI => self.stop(),
             OrchestratorToExplorer::MoveToPlanet {
                 planet_id,
                 sender_to_new_planet,
-            } => {
-                self.to_orchestrator(ExplorerToOrchestrator::MovedToPlanetResult {
-                    explorer_id: self.id,
-                    planet_id,
-                })?;
-                self.move_to(planet_id, sender_to_new_planet)?;
-                Ok(false)
-            }
+            } => self.try_move_to(planet_id, sender_to_new_planet),
             OrchestratorToExplorer::CurrentPlanetRequest => {
                 self.to_orchestrator(ExplorerToOrchestrator::CurrentPlanetResult {
                     explorer_id: self.id,
                     planet_id: self
-                        .current_planet_id
+                        .planet_stats
+                        .id()
                         .ok_or("Explorer is not in a Planet".to_string())?,
                 })?;
                 Ok(false)
@@ -290,7 +219,7 @@ impl Explorer {
                 Ok(false)
             }
             OrchestratorToExplorer::CombineResourceRequest { to_generate } => {
-                if let Some(request) = self.bag.create_combination_request(to_generate) {
+                if let Some(request) = self.brain.try_combination_request(to_generate) {
                     self.to_planet(ExplorerToPlanet::CombineResourceRequest {
                         explorer_id: self.id,
                         msg: request,
@@ -301,7 +230,7 @@ impl Explorer {
             OrchestratorToExplorer::BagContentRequest => {
                 self.to_orchestrator(ExplorerToOrchestrator::BagContentResponse {
                     explorer_id: self.id,
-                    bag_content: self.bag.to_content(),
+                    bag_content: self.brain.get_bag_content(),
                 })?;
                 Ok(false)
             }
@@ -313,7 +242,7 @@ impl Explorer {
     }
 
     fn handle_supported_resources_request(&mut self) -> Result<bool, String> {
-        if let Some(list) = self.planet_stats.get_resources() {
+        if let Some(list) = self.planet_stats.resources() {
             self.to_orchestrator(ExplorerToOrchestrator::SupportedResourceResult {
                 explorer_id: self.id,
                 supported_resources: list.clone(),
@@ -325,9 +254,8 @@ impl Explorer {
         }
         Ok(false)
     }
-
     fn handle_supported_combination_request(&mut self) -> Result<bool, String> {
-        if let Some(list) = self.planet_stats.get_combinations() {
+        if let Some(list) = self.planet_stats.combinations() {
             self.to_orchestrator(ExplorerToOrchestrator::SupportedCombinationResult {
                 explorer_id: self.id,
                 combination_list: list.clone(),
@@ -339,70 +267,11 @@ impl Explorer {
         }
         Ok(false)
     }
-    fn decide(&mut self) -> Intention {
-        let gene = self.genome[self.gene_step % self.genome.len()];
-        self.gene_step += 1;
-
-        match gene % (10 + self.move_chance) {
-            0..6 => Intention::Generate(self.decide_generation(gene)),
-            6..9 => Intention::Combine(self.decide_combination(gene)),
-            _ => Intention::Move(self.decide_move(gene)),
-        }
-    }
-
-    fn decide_generation(&self, gene: u8) -> Option<BasicResourceType> {
-        self.planet_stats
-            .get_resources()
-            .as_ref()
-            .filter(|resources| {!resources.is_empty()})
-            .map(|resources| {
-                *resources.iter().collect::<Vec<&BasicResourceType>>()
-                    [gene as usize % resources.len()]
-            })
-    }
-    fn decide_combination(&self, gene: u8) -> Option<ComplexResourceType> {
-        self.planet_stats
-            .get_combinations()
-            .as_ref()
-            .filter(|resources| {!resources.is_empty()})
-            .map(|resources| {
-                *resources.iter().collect::<Vec<&ComplexResourceType>>()
-                    [gene as usize % resources.len()]
-            })
-    }
-    fn decide_move(&self, gene: u8) -> Option<ID> {
-        self.planet_stats
-            .get_neighbors()
-            .as_ref()
-            .filter(|resources| {!resources.is_empty()})
-            .map(|neighbors| {
-                neighbors[gene as usize % neighbors.len()]
-            })
-    }
-
-    pub fn log_internal(channel: Channel, payload: Payload) {
-        LogEvent::system(EventType::InternalExplorerAction, channel, payload).emit();
-    }
-
-    /// Creates a log event with itself as sender
-    pub fn log_msg_to(
-        &self,
-        channel: Channel,
-        event_type: EventType,
-        to: (ActorType, ID),
-        payload: Payload,
-    ) {
-        LogEvent::new(
-            Some(Participant::new(ActorType::Explorer, self.id)),
-            Some(Participant::new(to.0, to.1)),
-            event_type,
-            channel,
-            payload,
-        )
-        .emit();
-    }
     fn execute_intention(&mut self) -> Result<(), String> {
-        let intention = self.decide();
+        let intention = self.brain.decide(&mut self.planet_stats);
+        log_trace(payload!(
+            intention : format!("{intention:?}"),
+        ));
 
         match intention {
             Intention::Generate(Some(resource)) => {
@@ -413,7 +282,7 @@ impl Explorer {
                 Ok(())
             }
             Intention::Combine(Some(resource)) => {
-                if let Some(msg) = self.bag.create_combination_request(resource) {
+                if let Some(msg) = self.brain.try_combination_request(resource) {
                     self.to_planet(ExplorerToPlanet::CombineResourceRequest {
                         explorer_id: self.id,
                         msg,
@@ -422,7 +291,7 @@ impl Explorer {
                 Ok(())
             }
             Intention::Move(Some(dest)) => {
-                if let Some(curr) = self.current_planet_id {
+                if let Some(curr) = self.planet_stats.id() {
                     self.to_orchestrator(ExplorerToOrchestrator::TravelToPlanetRequest {
                         explorer_id: self.id,
                         current_planet_id: curr,
@@ -431,11 +300,70 @@ impl Explorer {
                 }
                 Ok(())
             }
-            _ => {
-                self.move_chance += 1;
+            Intention::Move(None) => {
+                log_debug(payload!(
+                    action : "Nico could not find a Planet to move into",
+                    explorer_id : self.id,
+                    known_neighbors : format!("{:?}",self.planet_stats.neighbors())
+                ));
+                if let Some(planet_id) = self.planet_stats.id() {
+                    self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
+                        explorer_id: self.id,
+                        current_planet_id: planet_id,
+                    })?;
+                }
                 Ok(())
-            },
+            }
+            _ => {
+                self.brain.on_no_action();
+                Ok(())
+            }
         }
+    }
+    fn reset(&mut self) -> Result<bool, String> {
+        // TODO: actually reset AI
+        self.manual_mode = true;
+        log_info(payload!(
+            action : "Nico ExplorerAI correctly reset",
+            explorer_id : self.id
+        ));
+        self.to_orchestrator(ExplorerToOrchestrator::ResetExplorerAIResult {
+            explorer_id: self.id,
+        })?;
+        Ok(false)
+    }
+    fn stop(&mut self) -> Result<bool, String> {
+        self.manual_mode = true;
+        log_info(payload!(
+            action : "Nico Explorer switched to manual mode",
+            explorer_id : self.id,
+        ));
+        self.to_orchestrator(ExplorerToOrchestrator::StopExplorerAIResult {
+            explorer_id: self.id,
+        })?;
+        Ok(false)
+    }
+    fn start(&mut self) -> Result<bool, String> {
+        self.manual_mode = false;
+        self.to_orchestrator(ExplorerToOrchestrator::StartExplorerAIResult {
+            explorer_id: self.id,
+        })?;
+        log_info(payload!(action : "Nico ExplorerAI correctly started", explorer_id : self.id));
+        Ok(false)
+    }
+    fn kill(&mut self) -> Result<bool, String> {
+        log_info(payload!(
+            action : "Nico has been killed, bye bye :(",
+            explorer_id : self.id,
+            performance : self.brain.get_performance(),
+            genome : format!("{:?}",self.brain.get_genome()),
+            bag_content : format!("{:?}", self.brain.get_bag_content()),
+        ));
+        thread::sleep(Duration::from_millis(5));
+        self.to_orchestrator(ExplorerToOrchestrator::KillExplorerResult {
+            explorer_id: self.id,
+        })?;
+        Ok(true)
     }
 }
 
