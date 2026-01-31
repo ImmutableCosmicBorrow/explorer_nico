@@ -50,6 +50,7 @@ impl PlanetStats {
     pub(crate) fn sender(&self) -> Option<Sender<ExplorerToPlanet>> {
         self.sender.clone()
     }
+    #[allow(dead_code)]
     pub(crate) fn remove_neighbor(&mut self, to_remove: Option<ID>) {
         if let Some(id) = to_remove
             && let Some(ref mut neighbors) = self.neighbors

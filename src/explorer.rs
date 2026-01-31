@@ -1,5 +1,5 @@
 use crate::genetics::{Brain, Intention};
-use crate::logging_utils::{log_debug, log_error, log_info, log_trace, log_warning};
+use crate::logging_utils::{log_debug, log_error, log_info, log_warning};
 use crate::payload;
 use crate::planet_stats::PlanetStats;
 use common_explorer::{ExplorerAI, ExplorerBagContent};
@@ -285,7 +285,7 @@ impl Explorer {
     }
     fn execute_intention(&mut self) -> Result<(), String> {
         let intention = self.brain.decide(&mut self.planet_stats);
-        log_trace(payload!(
+        log_debug(payload!(
             intention : format!("{intention:?}"),
         ));
         //println!(" ++++ INTENTION: {intention:?} +++ PERFORMANCE: {}", self.brain.get_performance());

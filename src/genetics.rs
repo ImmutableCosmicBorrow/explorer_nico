@@ -157,12 +157,10 @@ impl Brain {
         }
     }
     fn decide_move(gene: u8, planet_stats: &mut PlanetStats) -> Option<ID> {
-        let id = planet_stats
+        planet_stats
             .neighbors()
             .filter(|neighbors| !neighbors.is_empty())
-            .map(|neighbors| neighbors[gene as usize % neighbors.len()]);
-        planet_stats.remove_neighbor(id);
-        id
+            .map(|neighbors| neighbors[gene as usize % neighbors.len()])
     }
 
     fn combinations_matchings(&self, combinations : Option<&HashSet<ComplexResourceType>>) -> usize {
