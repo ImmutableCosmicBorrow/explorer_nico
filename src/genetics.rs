@@ -33,9 +33,9 @@ pub(crate) struct Brain {
 
 impl Brain {
     pub(crate) fn new(game_step : Duration) -> Self {
-        //let mut rng = rand::rng();
-        //let genome: Vec<u8> = (0..20).map(|_| rng.random_range(0..64)).collect();
-        let genome = vec![59, 46, 53, 4, 2, 38, 9, 51, 61, 22, 25, 44, 12, 17, 42, 38, 37, 59, 32, 40];
+        let mut rng = rand::rng();
+        let genome: Vec<u8> = (0..32).map(|_| rng.random_range(0..48)).collect();
+        //let genome = vec![59, 46, 53, 4, 0, 38, 9, 51, 61, 22, 25, 44, 12, 17, 0, 38, 37, 59, 32, 40];
 
         Self {
             genome,
@@ -116,7 +116,7 @@ impl Brain {
 
         // If #matches is zero, don't try to combine
         if action > 10 && matches == 0{
-            action = 1 + (gene % 10);
+            action = (gene % 10) + u8::from(self.blocked);
         }
         match action {
             0 => Intention::Move(Brain::decide_move(gene, planet_stats)),

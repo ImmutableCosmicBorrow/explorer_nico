@@ -36,8 +36,9 @@ impl Explorer {
     ) -> Self {
         let brain = Brain::new(game_step);
         log_debug(
-            payload!(action : "Nico ExplorerAI ready", explorer_id : id, genome : format!("{:?}", brain.get_genome())),
+            payload!(action : "Nico ExplorerAI ready", explorer_id : id)
         );
+        //println!("Genome: {:?}", brain.get_genome());
         Explorer {
             id,
             brain,
@@ -371,21 +372,15 @@ impl Explorer {
             action : "Nico has been killed, bye bye :(",
             explorer_id : self.id,
             performance : self.brain.get_performance(),
-            genome : format!("{:?}",self.brain.get_genome()),
+            /*genome : format!("{:?}",self.brain.get_genome()),*/
             bag_content : format!("{:?}", self.brain.get_bag_content()),
             path : format!("{:?}", self.path)
         ));
-        println!(
-            "Performance: {}\
-            \n Genome: {:?}
-            \n Bag content: {:?}
-            \n Path: {:?}
-            ",
-            self.brain.get_performance(),
-            self.brain.get_genome(),
-            self.brain.get_bag_content(),
-            self.path
-        );
+        //println!("Performance: {}", self.brain.get_performance());
+        //println!("Bag Content : {:?}", self.brain.get_bag_content());
+        //println!("Path: {:?}", self.path);
+
+
         thread::sleep(Duration::from_millis(5));
         self.to_orchestrator(ExplorerToOrchestrator::KillExplorerResult {
             explorer_id: self.id,
@@ -396,7 +391,6 @@ impl Explorer {
 
 impl ExplorerAI for Explorer {
     fn run(&mut self) -> Result<(), String> {
-        let timeout = Duration::from_millis(200);
         loop {
             let start = Instant::now();
 
@@ -413,7 +407,7 @@ impl ExplorerAI for Explorer {
                     //println!(" *** GOT FROM PLANET {}: {msg:?}", self.planet_stats.id().unwrap());
                     self.handle_planet_message(msg)?;
                 }
-                default(timeout) => {
+                default(self.game_step.div_f32(0.75)) => {
                     if !self.manual_mode{
                         self.execute_intention()?;
                     }
