@@ -49,6 +49,7 @@ impl Brain {
             last_success: Instant::now(),
         }
     }
+    #[allow(dead_code)]
     pub(crate) fn get_genome(&self) -> Vec<&u8> {
         self.genome.iter().collect()
     }
