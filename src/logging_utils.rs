@@ -1,6 +1,4 @@
-use crate::Explorer;
-use common_game::logging::{ActorType, Channel, EventType, LogEvent, Participant, Payload};
-use common_game::utils::ID;
+use common_game::logging::{Channel, EventType, LogEvent, Payload};
 
 #[macro_export]
 macro_rules! payload {
@@ -12,28 +10,23 @@ macro_rules! payload {
         p
     }};
 }
-
-impl Explorer {
-    /// Creates and emits a log event without sender and receiver, and with `EventType::InternalOrchestratorAction`
-    pub fn log_internal(channel: Channel, payload: Payload) {
-        LogEvent::system(EventType::InternalExplorerAction, channel, payload).emit();
-    }
-
-    /// Creates a log event with itself as sender
-    pub fn log_msg_to(
-        &self,
-        channel: Channel,
-        event_type: EventType,
-        to: (ActorType, ID),
-        payload: Payload,
-    ) {
-        LogEvent::new(
-            Some(Participant::new(ActorType::Explorer, self.id)),
-            Some(Participant::new(to.0, to.1)),
-            event_type,
-            channel,
-            payload,
-        )
-        .emit();
-    }
+macro_rules! generate_logs {
+    ($($name:ident, $channel:expr);+ $(;)?) => {
+        $(
+            pub(crate) fn $name(p: Payload) {
+                LogEvent::system(
+                    EventType::InternalExplorerAction,
+                    $channel,
+                    p
+                ).emit();
+            }
+        )+
+    };
 }
+generate_logs!(
+    log_info,    Channel::Info;
+    log_debug,   Channel::Debug;
+    log_trace,   Channel::Trace;
+    log_warning, Channel::Warning;
+    log_error,   Channel::Error;
+);
