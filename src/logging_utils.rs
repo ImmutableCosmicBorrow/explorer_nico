@@ -25,7 +25,7 @@ macro_rules! generate_logs {
 }
 generate_logs!(
     log_info,    Channel::Info;
-    log_debug,   Channel::Error;
+    log_debug,   Channel::Debug;
     log_warning, Channel::Warning;
     log_error,   Channel::Error;
     /*log_trace,   Channel::Trace;*/
