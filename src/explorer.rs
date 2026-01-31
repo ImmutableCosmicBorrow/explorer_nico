@@ -10,7 +10,6 @@ use common_game::protocols::orchestrator_explorer::{
 use common_game::protocols::planet_explorer::{ExplorerToPlanet, PlanetToExplorer};
 use common_game::utils::ID;
 use crossbeam_channel::{Receiver, Sender, select};
-use std::thread;
 use std::time::{Duration, Instant};
 
 pub struct Explorer {
@@ -55,27 +54,39 @@ impl Explorer {
         &self,
         msg: ExplorerToOrchestrator<ExplorerBagContent>,
     ) -> Result<(), String> {
+        log_debug(payload!(
+                action : "Nico sending to the Orchestrator",
+                explorer_id : self.id,
+                msg : format!("{msg:?}")
+            ));
         let res = self
             .orchestrator_sender
             .send(msg)
             .map_err(|err| err.to_string());
-        if res.is_err() {
+        if let Err(ref e) = res {
             log_error(payload!(
                 action : "Nico got an error while trying to send to the Orchestrator",
-                explorer_id : self.id
+                explorer_id : self.id,
+                error : e,
             ));
         }
         res
     }
     pub(crate) fn to_planet(&self, msg: ExplorerToPlanet) -> Result<(), String> {
         if let Some(ref sender) = self.planet_stats.sender() {
-            //println!(" *** SENDING TO PLANET {} MSG: {msg:?}", self.planet_stats.id().unwrap());
+            //println!(" *** SENDING TO PLANET {} MSG: {msg:?}", self.planet_stats.id().unwrap())
+            log_debug(payload!(
+                action : "Nico sending to Planet",
+                explorer_id : self.id,
+                planet : format!("{:?}", self.planet_stats.id()),
+                msg : format!("{msg:?}")
+            ));
             sender.send(msg).map_err(|err| err.to_string())
         } else {
             log_warning(
                 payload!(action : "Nico does not have a Planet sender", explorer_id : self.id),
             );
-            Err("Planet sender is None".into())
+            Ok(())
         }
     }
     pub(crate) fn try_move_to(
@@ -88,6 +99,7 @@ impl Explorer {
             explorer_id: self.id,
             planet_id,
         })?;
+        self.brain.on_move();
 
         // Move only if the sender is Some
         if let Some(sender) = new_sender {
@@ -96,15 +108,17 @@ impl Explorer {
             // Reset the Planet stats and update id and sender.
             self.planet_stats.reset();
             self.planet_stats.update_id_and_sender(planet_id, sender);
-            self.brain.on_move();
+
 
             // Ask Planet for its supported resources and combinations
             self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
                 explorer_id: self.id,
             })?;
+
             self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
                 explorer_id: self.id,
             })?;
+
             // Ask Orchestrator for neighbors of the current Planet
             self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
                 explorer_id: self.id,
@@ -121,6 +135,7 @@ impl Explorer {
     ) -> Result<(), String> {
         match message {
             PlanetToExplorer::SupportedResourceResponse { resource_list } => {
+                // TODO: might want to send it anyway
                 // Send to Orchestrator only if it is in manual mode
                 if self.manual_mode {
                     self.to_orchestrator(ExplorerToOrchestrator::SupportedResourceResult {
@@ -131,6 +146,7 @@ impl Explorer {
                 self.planet_stats.update_resources(resource_list);
             }
             PlanetToExplorer::SupportedCombinationResponse { combination_list } => {
+                // TODO: might want to send it anyway
                 // Send to Orchestrator only if it is in manual mode
                 if self.manual_mode {
                     self.to_orchestrator(ExplorerToOrchestrator::SupportedCombinationResult {
@@ -142,15 +158,18 @@ impl Explorer {
             }
             PlanetToExplorer::GenerateResourceResponse { resource } => {
                 let generated = if let Some(r) = resource {
+                    let resource_type = r.get_type();
+                    self.brain.insert_resource(GenericResource::BasicResources(r));
                     log_debug(
-                        payload!(action : "Nico generated a basic resource", explorer_id : self.id, basic_resource : format!("{:?}", r.get_type()),others_in_bag : format!("{:?}", self.brain.get_bag_content())),
+                        payload!(action : "Nico generated a basic resource", explorer_id : self.id, basic_resource : format!("{:?}", resource_type),others_in_bag : format!("{:?}", self.brain.get_bag_content())),
                     );
-                    self.brain
-                        .insert_resource(GenericResource::BasicResources(r));
                     Ok(())
                 } else {
                     self.brain.on_no_action();
-                    Err("Planet did not generate resource".into())
+                    log_debug(
+                        payload!(action : "Planet did not generate basic resource for Nico", explorer_id : self.id)
+                    );
+                    Ok(())
                 };
                 // Send to Orchestrator only if it is in manual mode
                 if self.manual_mode {
@@ -174,9 +193,13 @@ impl Explorer {
                         self.brain.reinsert_resource(r1);
                         self.brain.reinsert_resource(r2);
                         self.brain.on_no_action();
-                        Err("Planet did not create resource".into())
+                        log_debug(
+                            payload!(action : "Planet did not combine complex resource for Nico", explorer_id : self.id)
+                        );
+                        Ok(())
                     }
                 };
+                // TODO: might want to send it anyway
                 // Send to Orchestrator only if it is in manual mode
                 if self.manual_mode {
                     self.to_orchestrator(ExplorerToOrchestrator::GenerateResourceResponse {
@@ -185,6 +208,7 @@ impl Explorer {
                     })?;
                 }
             }
+            // Ignore others
             PlanetToExplorer::AvailableEnergyCellResponse { .. } | PlanetToExplorer::Stopped => {}
         }
 
@@ -232,6 +256,8 @@ impl Explorer {
                         explorer_id: self.id,
                         msg: request,
                     })?;
+                } else if self.manual_mode {
+                    self.to_orchestrator(ExplorerToOrchestrator::CombineResourceResponse {explorer_id : self.id, generated : Err("Explorer did not have ingredients".into())})?;
                 }
                 Ok(false)
             }
@@ -286,7 +312,8 @@ impl Explorer {
     fn execute_intention(&mut self) -> Result<(), String> {
         let intention = self.brain.decide(&mut self.planet_stats);
         log_debug(payload!(
-            intention : format!("{intention:?}"),
+            intention : format!("Nico wants to: {intention:?}"),
+            explorer_id: self.id,
         ));
         //println!(" ++++ INTENTION: {intention:?} +++ PERFORMANCE: {}", self.brain.get_performance());
         match intention {
@@ -339,24 +366,24 @@ impl Explorer {
     fn reset(&mut self) -> Result<bool, String> {
         // TODO: actually reset AI
         self.manual_mode = true;
+        self.to_orchestrator(ExplorerToOrchestrator::ResetExplorerAIResult {
+            explorer_id: self.id,
+        })?;
         log_info(payload!(
             action : "Nico ExplorerAI correctly reset",
             explorer_id : self.id
         ));
-        self.to_orchestrator(ExplorerToOrchestrator::ResetExplorerAIResult {
-            explorer_id: self.id,
-        })?;
         Ok(false)
     }
     fn stop(&mut self) -> Result<bool, String> {
         self.manual_mode = true;
+        self.to_orchestrator(ExplorerToOrchestrator::StopExplorerAIResult {
+            explorer_id: self.id,
+        })?;
         log_info(payload!(
             action : "Nico switched to manual mode",
             explorer_id : self.id,
         ));
-        self.to_orchestrator(ExplorerToOrchestrator::StopExplorerAIResult {
-            explorer_id: self.id,
-        })?;
         Ok(false)
     }
     fn start(&mut self) -> Result<bool, String> {
@@ -364,9 +391,28 @@ impl Explorer {
         self.to_orchestrator(ExplorerToOrchestrator::StartExplorerAIResult {
             explorer_id: self.id,
         })?;
+
+
+        // TODO: might be redundant
+        // Ask Planet for its supported resources and combinations
+        self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
+            explorer_id: self.id,
+        })?;
+        self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
+            explorer_id: self.id,
+        })?;
+        // Ask Orchestrator for neighbors of the current Planet
+        if let Some(id) = self.planet_stats.id() {
+            self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
+                explorer_id: self.id,
+                current_planet_id: id,
+            })?;
+        }
+
         log_info(payload!(action : "Nico ExplorerAI correctly started", explorer_id : self.id));
+
         Ok(false)
-    }   
+    }
     fn kill(&mut self) -> Result<bool, String> {
         log_info(payload!(
             action : "Nico has been killed, bye bye :(",
@@ -379,9 +425,6 @@ impl Explorer {
         //println!("Performance: {}", self.brain.get_performance());
         //println!("Bag Content : {:?}", self.brain.get_bag_content());
         //println!("Path: {:?}", self.path);
-
-
-        thread::sleep(Duration::from_millis(5));
         self.to_orchestrator(ExplorerToOrchestrator::KillExplorerResult {
             explorer_id: self.id,
         })?;
@@ -391,12 +434,18 @@ impl Explorer {
 
 impl ExplorerAI for Explorer {
     fn run(&mut self) -> Result<(), String> {
+        let mut next_tick = Instant::now() + self.game_step;
         loop {
-            let start = Instant::now();
-
+            let now = Instant::now();
+            let timeout = next_tick.saturating_duration_since(now);
             select! {
                 recv(self.orchestrator_receiver) -> msg => {
                     let msg = msg.expect("Error while receiving from Orchestrator");
+                    log_debug(payload!(
+                        action : "Nico received from Orchestrator",
+                        explorer_id : self.id,
+                        msg : format!("{msg:?}")
+                    ));
                     let kill = self.handle_orchestrator_message(msg)?;
                     if kill {
                         return Ok(());
@@ -405,19 +454,20 @@ impl ExplorerAI for Explorer {
                 recv(self.planet_receiver) -> msg => {
                     let msg = msg.expect("Error while receiving from Planet");
                     //println!(" *** GOT FROM PLANET {}: {msg:?}", self.planet_stats.id().unwrap());
+                    log_debug(payload!(
+                        action : "Nico received from Planet",
+                        explorer_id : self.id,
+                        planet : format!("{:?}", self.planet_stats.id()),
+                        msg : format!("{msg:?}")
+                    ));
                     self.handle_planet_message(msg)?;
                 }
-                default(self.game_step.div_f32(0.75)) => {
+                default(timeout) => {
                     if !self.manual_mode{
                         self.execute_intention()?;
                     }
-
+                    next_tick = Instant::now() + self.game_step;
                 }
-            }
-
-            let elapsed = start.elapsed();
-            if elapsed < self.game_step {
-                thread::sleep(self.game_step - elapsed);
             }
         }
     }
