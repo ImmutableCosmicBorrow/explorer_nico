@@ -124,7 +124,7 @@ impl Brain {
         let mut action = gene % (10 + self.resources_amount) + u8::from(self.blocked);
 
         // If #matches is zero, don't try to combine
-        if action > 10 && matches{
+        if action > 10 && !matches{
             action = (gene % 10) + u8::from(self.blocked);
         }
         match action {
