@@ -99,7 +99,7 @@ impl Explorer {
             explorer_id: self.id,
             planet_id,
         })?;
-        self.brain.on_move();
+        self.brain.on_move(self.planet_stats.id().unwrap_or(0));
 
         // Move only if the sender is Some
         if let Some(sender) = new_sender {
@@ -159,7 +159,7 @@ impl Explorer {
             PlanetToExplorer::GenerateResourceResponse { resource } => {
                 let generated = if let Some(r) = resource {
                     let resource_type = r.get_type();
-                    self.brain.insert_resource(GenericResource::BasicResources(r));
+                    self.brain.insert_resource(GenericResource::BasicResources(r), self.planet_stats.id().unwrap_or(0));
                     log_debug(
                         payload!(action : "Nico generated a basic resource", explorer_id : self.id, basic_resource : format!("{:?}", resource_type),others_in_bag : format!("{:?}", self.brain.get_bag_content())),
                     );
@@ -186,7 +186,7 @@ impl Explorer {
                             payload!(action : "Nico generated a complex resource", explorer_id : self.id, basic_resource : format!("{:?}", r.get_type()),others_in_bag : format!("{:?}", self.brain.get_bag_content())),
                         );
                         self.brain
-                            .insert_resource(GenericResource::ComplexResources(r));
+                            .insert_resource(GenericResource::ComplexResources(r), self.planet_stats.id().unwrap_or(0));
                         Ok(())
                     }
                     Err((_error, r1, r2)) => {
@@ -284,6 +284,7 @@ impl Explorer {
     }
 
     fn handle_supported_resources_request(&mut self) -> Result<bool, String> {
+       //println!("--- SUPPORTED RESOURCES REQUEST FROM ORCHESTRATOR !!!!!");
         if let Some(list) = self.planet_stats.resources() {
             self.to_orchestrator(ExplorerToOrchestrator::SupportedResourceResult {
                 explorer_id: self.id,
@@ -297,6 +298,7 @@ impl Explorer {
         Ok(false)
     }
     fn handle_supported_combination_request(&mut self) -> Result<bool, String> {
+       //println!("--- SUPPORTED COMBINATIONS REQUEST FROM ORCHESTRATOR !!!!!");
         if let Some(list) = self.planet_stats.combinations() {
             self.to_orchestrator(ExplorerToOrchestrator::SupportedCombinationResult {
                 explorer_id: self.id,
@@ -315,7 +317,7 @@ impl Explorer {
             intention : format!("Nico wants to: {intention:?}"),
             explorer_id: self.id,
         ));
-        //println!(" ++++ INTENTION: {intention:?} +++ PERFORMANCE: {}", self.brain.get_performance());
+       //println!(" ++++ INTENTION: {intention:?} +++ PERFORMANCE: {}", self.brain.get_performance());
         match intention {
             Intention::Generate(Some(resource)) => {
                 self.to_planet(ExplorerToPlanet::GenerateResourceRequest {
@@ -349,6 +351,7 @@ impl Explorer {
                 //self.brain.got_blocked();
                 // Try asking for neighbors again, maybe we are not updated
                 if let Some(planet_id) = self.planet_stats.id() {
+                   //println!("!!! ASKING ORCHESTRATOR FOR NEIGHBORS |||");
                     self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
                         explorer_id: self.id,
                         current_planet_id: planet_id,
@@ -422,9 +425,9 @@ impl Explorer {
             bag_content : format!("{:?}", self.brain.get_bag_content()),
             path : format!("{:?}", self.path)
         ));
-        //println!("Performance: {}", self.brain.get_performance());
-        //println!("Bag Content : {:?}", self.brain.get_bag_content());
-        //println!("Path: {:?}", self.path);
+       //println!("Performance: {}", self.brain.get_performance());
+       //println!("Bag Content : {:?}", self.brain.get_bag_content());
+       //println!("Path: {:?}", self.path);
         self.to_orchestrator(ExplorerToOrchestrator::KillExplorerResult {
             explorer_id: self.id,
         })?;
@@ -453,7 +456,7 @@ impl ExplorerAI for Explorer {
                 }
                 recv(self.planet_receiver) -> msg => {
                     let msg = msg.expect("Error while receiving from Planet");
-                    //println!(" *** GOT FROM PLANET {}: {msg:?}", self.planet_stats.id().unwrap());
+                   //println!(" *** GOT FROM PLANET {}: {msg:?}", self.planet_stats.id().unwrap());
                     log_debug(payload!(
                         action : "Nico received from Planet",
                         explorer_id : self.id,

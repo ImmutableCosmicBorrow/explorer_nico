@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::ops::Mul;
 use std::time::{Duration, Instant};
 use crate::planet_stats::PlanetStats;
@@ -29,6 +29,7 @@ pub(crate) struct Brain {
     blocked: bool,
     idle_timeout : Duration,
     last_success : Instant,
+    planets_score : HashMap<ID, u32>,
 }
 
 impl Brain {
@@ -47,6 +48,7 @@ impl Brain {
             blocked: false,
             idle_timeout : game_step.mul(6),
             last_success: Instant::now(),
+            planets_score: HashMap::new(),
         }
     }
     #[allow(dead_code)]
@@ -56,13 +58,15 @@ impl Brain {
     pub(crate) fn get_performance(&self) -> u32 {
         self.performance
     }
-    pub(crate) fn insert_resource(&mut self, resource: GenericResource) {
+    pub(crate) fn insert_resource(&mut self, resource: GenericResource, planet_id : ID) {
         self.performance += match resource {
             GenericResource::BasicResources(_) => {
+                *self.planets_score.entry(planet_id).or_insert(BASIC_RESOURCE_WEIGHT) += 1;
                 self.resources_amount += 1;
                 BASIC_RESOURCE_WEIGHT
             }
             GenericResource::ComplexResources(_) => {
+                *self.planets_score.entry(planet_id).or_insert(BASIC_RESOURCE_WEIGHT) += 3;
                 self.resources_amount -= 1;
                 COMPLEX_RESOURCE_WEIGHT
             }
@@ -86,9 +90,15 @@ impl Brain {
     ) -> Option<ComplexResourceRequest> {
         self.bag.create_combination_request(complex)
     }
-    pub(crate) fn on_move(&mut self) {
+    pub(crate) fn on_move(&mut self, id : ID) {
         self.move_intention = false;
         self.last_success = Instant::now();
+
+        // If this planet was never visited, add it to the planet_scores
+        let score = self.planets_score.entry(id).or_insert(0);
+        if *score == 100 {
+            *score = 0;
+        }
     }
     pub(crate) fn on_no_action(&mut self) {
         // Sets move intention to true based on the gene
@@ -111,17 +121,18 @@ impl Brain {
         let gene = self.genome[self.gene_step % self.genome.len()];
         self.gene_step += 1;
 
+        // Adding self.blocked prevents a Move Intention if Explorer is blocked here
+        let mut action = gene % (10 + self.resources_amount) + u8::from(self.blocked);
+
+
         // If last action was not successful, the Explorer will want to move
         // Also better to move if too much time elapsed since last successful action
         if !self.blocked && (self.move_intention || (self.last_success.elapsed() > self.idle_timeout)) {
-            return Intention::Move(Brain::decide_move(gene, planet_stats))
+            action = 0;
         }
 
         // Check if Planet has any combination matching our resources
         let matches = self.combinations_matchings(planet_stats.combinations());
-
-        // Adding self.blocked prevents a Move Intention if Explorer is blocked here
-        let mut action = gene % (10 + self.resources_amount) + u8::from(self.blocked);
 
         // If #matches is zero, don't try to combine
         // Otherwise make it more probable
@@ -131,7 +142,7 @@ impl Brain {
             action += 6;
         }
         match action {
-            0..2 => Intention::Move(Brain::decide_move(gene, planet_stats)),
+            0..2 => Intention::Move(self.decide_move(gene, planet_stats)),
             2..11 => Intention::Generate(Brain::decide_generation(gene, planet_stats)),
             _ => Intention::Combine(self.decide_combination(gene, planet_stats)),
         }
@@ -158,12 +169,41 @@ impl Brain {
             combo_vec.into_iter().find_map(|&complex| self.bag.create_combination_request(complex))
         }
     }
-    fn decide_move(gene: u8, planet_stats: &mut PlanetStats) -> Option<ID> {
+    fn decide_move(&self, gene: u8, planet_stats: &mut PlanetStats) -> Option<ID> {
         planet_stats.neighbors().and_then(|neighbors| {
+            // Explorer performs a tournament selection:
+            // pick 3 random Planets and choose the one with the best score
             if neighbors.is_empty() {
                 None
             } else {
-                Some(neighbors[gene as usize % neighbors.len()])
+                let n = neighbors.len();
+
+                // If less than 3 planets are neighbors, just pick the best
+                if n <= 3{
+                   //println!(" ??? LESS THAN 3 NEIGHBORS. SCORES: {:?}", self.planets_score);
+                    return neighbors
+                        .iter()
+                        .max_by_key(|id| self.planets_score.get(id).unwrap_or(&100))
+                        .copied()
+                }
+
+                // Otherwise, pick 3 randoms based on gene
+               //println!(" ??? PICKING 3 RANDOM NEIGHBORS. ALL SCORES: {:?}", self.planets_score);
+                let index1 = (gene as usize) % n;
+                let index2 = (gene as usize + n/3) % n;
+                let index3 = (gene as usize + n * 2/3) % n;
+
+                let candidates = [
+                    &neighbors[index1], &neighbors[index2], &neighbors[index3]
+                ];
+
+                // The candidate with the highest score wins the tournament
+                candidates
+                    .iter()
+                    .max_by_key(|&&id| self.planets_score.get(id).unwrap_or(&100))
+                    .map(|v| **v)
+
+               //println!("??? CANDIDATES: {candidates:?}, CHOSEN {chosen:?}: ");
             }
         })
     }
