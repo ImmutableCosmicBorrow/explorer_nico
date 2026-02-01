@@ -1,5 +1,5 @@
 use crate::genetics::{Brain, Intention};
-use crate::logging_utils::{log_debug, log_error, log_info, log_warning};
+use crate::logging_utils::{log_debug, log_error, log_info, log_trace, log_warning};
 use crate::payload;
 use crate::planet_stats::PlanetStats;
 use common_explorer::{ExplorerAI, ExplorerBagContent};
@@ -54,7 +54,7 @@ impl Explorer {
         &self,
         msg: ExplorerToOrchestrator<ExplorerBagContent>,
     ) -> Result<(), String> {
-        log_debug(payload!(
+        log_trace(payload!(
                 action : "Nico sending to the Orchestrator",
                 explorer_id : self.id,
                 msg : format!("{msg:?}")
@@ -346,7 +346,7 @@ impl Explorer {
                     action : "Nico could not find a Planet to move into. Feels lonely here.",
                     explorer_id : self.id
                 ));
-                self.brain.got_blocked();
+                //self.brain.got_blocked();
                 // Try asking for neighbors again, maybe we are not updated
                 if let Some(planet_id) = self.planet_stats.id() {
                     self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
@@ -441,7 +441,7 @@ impl ExplorerAI for Explorer {
             select! {
                 recv(self.orchestrator_receiver) -> msg => {
                     let msg = msg.expect("Error while receiving from Orchestrator");
-                    log_debug(payload!(
+                    log_trace(payload!(
                         action : "Nico received from Orchestrator",
                         explorer_id : self.id,
                         msg : format!("{msg:?}")

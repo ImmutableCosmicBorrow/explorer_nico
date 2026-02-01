@@ -28,5 +28,5 @@ generate_logs!(
     log_debug,   Channel::Debug;
     log_warning, Channel::Warning;
     log_error,   Channel::Error;
-    /*log_trace,   Channel::Trace;*/
+    log_trace,   Channel::Trace;
 );

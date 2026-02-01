@@ -7,7 +7,7 @@ use common_game::components::resource::{
     BasicResourceType, ComplexResourceRequest, ComplexResourceType, GenericResource,
 };
 use common_game::utils::ID;
-use rand::RngExt;
+use rand::Rng;
 
 const BASIC_RESOURCE_WEIGHT: u32 = 10;
 const COMPLEX_RESOURCE_WEIGHT: u32 = 60;
@@ -34,7 +34,7 @@ pub(crate) struct Brain {
 impl Brain {
     pub(crate) fn new(game_step : Duration) -> Self {
         let mut rng = rand::rng();
-        let genome: Vec<u8> = (0..32).map(|_| rng.random_range(0..48)).collect();
+        let genome: Vec<u8> = (0..64).map(|_| rng.random_range(0..128)).collect();
         //let genome = vec![59, 46, 53, 4, 0, 38, 9, 51, 61, 22, 25, 44, 12, 17, 0, 38, 37, 59, 32, 40];
 
         Self {
@@ -45,7 +45,7 @@ impl Brain {
             bag: ExplorerBag::new(),
             move_intention: false,
             blocked: false,
-            idle_timeout : game_step.mul(20),
+            idle_timeout : game_step.mul(6),
             last_success: Instant::now(),
         }
     }
@@ -124,12 +124,15 @@ impl Brain {
         let mut action = gene % (10 + self.resources_amount) + u8::from(self.blocked);
 
         // If #matches is zero, don't try to combine
+        // Otherwise make it more probable
         if action > 10 && !matches{
             action = (gene % 10) + u8::from(self.blocked);
+        } else if matches {
+            action += 6;
         }
         match action {
-            0 => Intention::Move(Brain::decide_move(gene, planet_stats)),
-            1..11 => Intention::Generate(Brain::decide_generation(gene, planet_stats)),
+            0..2 => Intention::Move(Brain::decide_move(gene, planet_stats)),
+            2..11 => Intention::Generate(Brain::decide_generation(gene, planet_stats)),
             _ => Intention::Combine(self.decide_combination(gene, planet_stats)),
         }
     }
