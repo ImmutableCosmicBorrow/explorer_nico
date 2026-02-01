@@ -106,9 +106,7 @@ impl Explorer {
             self.path.push(planet_id);
 
             // Reset the Planet stats and update id and sender.
-            self.planet_stats.reset();
-            self.planet_stats.update_id_and_sender(planet_id, sender);
-
+            self.planet_stats.update_planet(planet_id, sender);
 
             // Ask Planet for its supported resources and combinations
             self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
@@ -350,7 +348,7 @@ impl Explorer {
                 ));
                 //self.brain.got_blocked();
                 // Try asking for neighbors again, maybe we are not updated
-                if let Some(planet_id) = self.planet_stats.id() {
+                if !self.planet_stats.has_neighbors() && let Some(planet_id) = self.planet_stats.id() {
                    //println!("!!! ASKING ORCHESTRATOR FOR NEIGHBORS |||");
                     self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
                         explorer_id: self.id,
@@ -398,14 +396,19 @@ impl Explorer {
 
         // TODO: might be redundant
         // Ask Planet for its supported resources and combinations
-        self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
-            explorer_id: self.id,
-        })?;
-        self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
-            explorer_id: self.id,
-        })?;
+        if !self.planet_stats.has_resources() {
+            self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
+                explorer_id: self.id,
+            })?;
+        }
+        if !self.planet_stats.has_combinations() {
+            self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
+                explorer_id: self.id,
+            })?;
+        }
+
         // Ask Orchestrator for neighbors of the current Planet
-        if let Some(id) = self.planet_stats.id() {
+        if self.planet_stats.has_neighbors() && let Some(id) = self.planet_stats.id(){
             self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
                 explorer_id: self.id,
                 current_planet_id: id,

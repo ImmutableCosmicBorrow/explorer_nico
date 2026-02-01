@@ -31,9 +31,12 @@ impl PlanetStats {
     pub(crate) fn update_neighbors(&mut self, neighbors: Vec<ID>) {
         self.neighbors = Some(neighbors);
     }
-    pub(crate) fn update_id_and_sender(&mut self, id: ID, sender: Sender<ExplorerToPlanet>) {
+    pub(crate) fn update_planet(&mut self, id: ID, sender: Sender<ExplorerToPlanet>) {
         self.id = Some(id);
         self.sender = Some(sender);
+        self.resources = None;
+        self.combinations = None;
+        self.neighbors = None;
     }
     pub(crate) fn resources(&self) -> Option<&HashSet<BasicResourceType>> {
         self.resources.as_ref()
@@ -47,6 +50,27 @@ impl PlanetStats {
     pub(crate) fn id(&self) -> Option<ID> {
         self.id
     }
+    pub(crate) fn has_neighbors(&self) -> bool {
+        if let Some(ref neighbors) = self.neighbors {
+            !neighbors.is_empty()
+        } else {
+            false
+        }
+    }
+    pub(crate) fn has_resources(&self) -> bool {
+        if let Some(ref resources) = self.resources {
+            !resources.is_empty()
+        } else {
+            false
+        }
+    }
+    pub(crate) fn has_combinations(&self) -> bool {
+        if let Some(ref combinations) = self.combinations {
+            !combinations.is_empty()
+        } else {
+            false
+        }
+    }
     pub(crate) fn sender(&self) -> Option<Sender<ExplorerToPlanet>> {
         self.sender.clone()
     }
@@ -57,12 +81,5 @@ impl PlanetStats {
         {
             neighbors.retain(|x| *x != id);
         }
-    }
-    pub(crate) fn reset(&mut self) {
-        self.id = None;
-        self.sender = None;
-        self.resources = None;
-        self.combinations = None;
-        self.neighbors = None;
     }
 }
