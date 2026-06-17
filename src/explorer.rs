@@ -22,6 +22,8 @@ pub struct Explorer {
     game_step: Duration,
     manual_mode: bool,
     path: Vec<ID>,
+    pending_resource_request: bool,
+    pending_combination_request: bool,
 }
 
 impl Explorer {
@@ -45,6 +47,8 @@ impl Explorer {
             game_step,
             manual_mode: true,
             path: Vec::new(),
+            pending_resource_request: false,
+            pending_combination_request: false,
         }
     }
     pub(crate) fn to_orchestrator(
@@ -103,12 +107,18 @@ impl Explorer {
 
             // Reset the Planet stats and update id and sender.
             self.planet_stats.update_planet(planet_id, sender);
+            
+            // Reset pending flags since we're moving to a new planet
+            self.pending_resource_request = false;
+            self.pending_combination_request = false;
 
             // Ask Planet for its supported resources and combinations
+            self.pending_resource_request = true;
             self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
                 explorer_id: self.id,
             })?;
 
+            self.pending_combination_request = true;
             self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
                 explorer_id: self.id,
             })?;
@@ -129,6 +139,9 @@ impl Explorer {
     ) -> Result<(), String> {
         match message {
             PlanetToExplorer::SupportedResourceResponse { resource_list } => {
+                // Clear the pending flag
+                self.pending_resource_request = false;
+                
                 // Send to Orchestrator only if it is in manual mode
                 if self.manual_mode {
                     self.to_orchestrator(ExplorerToOrchestrator::SupportedResourceResult {
@@ -141,6 +154,9 @@ impl Explorer {
                     .set_planet_basic_resources(self.planet_stats.id().unwrap_or(0), resource_list);
             }
             PlanetToExplorer::SupportedCombinationResponse { combination_list } => {
+                // Clear the pending flag
+                self.pending_combination_request = false;
+                
                 // Send to Orchestrator only if it is in manual mode
                 if self.manual_mode {
                     self.to_orchestrator(ExplorerToOrchestrator::SupportedCombinationResult {
@@ -291,11 +307,15 @@ impl Explorer {
                 explorer_id: self.id,
                 supported_resources: list.clone(),
             })?;
-        } else {
+        } else if !self.pending_resource_request {
+            // Only request from planet if we're not already waiting for a response
+            self.pending_resource_request = true;
             self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
                 explorer_id: self.id,
             })?;
         }
+        // If pending_resource_request is true, we're already waiting for a response,
+        // so we don't send another request. The response will trigger the result.
         Ok(false)
     }
 
@@ -305,17 +325,21 @@ impl Explorer {
                 explorer_id: self.id,
                 combination_list: list.clone(),
             })?;
-        } else {
+        } else if !self.pending_combination_request {
+            // Only request from planet if we're not already waiting for a response
+            self.pending_combination_request = true;
             self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
                 explorer_id: self.id,
             })?;
         }
+        // If pending_combination_request is true, we're already waiting for a response,
+        // so we don't send another request. The response will trigger the result.
         Ok(false)
     }
 
     fn execute_intention(&mut self) -> Result<(), String> {
         let intention = self.brain.think(self.planet_stats.id().unwrap_or(0));
-        
+
         log_debug(payload!(
             intention : format!("Nico wants to: {intention:?}"),
             explorer_id: self.id,
@@ -377,6 +401,8 @@ impl Explorer {
     fn reset(&mut self) -> Result<bool, String> {
         // TODO: actually reset AI
         self.manual_mode = true;
+        self.pending_resource_request = false;
+        self.pending_combination_request = false;
         self.to_orchestrator(ExplorerToOrchestrator::ResetExplorerAIResult {
             explorer_id: self.id,
         })?;
@@ -417,6 +443,8 @@ impl Explorer {
             bag_content : format!("{:?}", self.brain.bag_content()),
             path : format!("{:?}", self.path)
         ));
+        self.pending_resource_request = false;
+        self.pending_combination_request = false;
         self.to_orchestrator(ExplorerToOrchestrator::KillExplorerResult {
             explorer_id: self.id,
         })?;

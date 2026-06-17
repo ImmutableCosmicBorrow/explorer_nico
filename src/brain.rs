@@ -12,7 +12,7 @@ use common_game::{
     utils::ID,
 };
 use crate::logging_utils::log_error;
-use crate::resources::build_crafting_vector;
+use crate::resources::{build_capabilities, build_crafting_vector};
 
 #[derive(Debug)]
 pub(crate) enum Intention {
@@ -22,19 +22,19 @@ pub(crate) enum Intention {
 }
 
 const INITIAL_NEEDS: [u64; 10] = [
-    4,  // Carbon
-    4,  // Hydrogen
-    4,  // Oxygen
-    4,  // Silicon
-    5,  // Diamond
-    6,  // Water
-    7,  // Life
-    8,  // Robot
-    9,  // Dolphin
-    10, // AI Partner
+    2,  // Carbon
+    2,  // Hydrogen
+    2,  // Oxygen
+    2,  // Silicon
+    3,  // Diamond
+    2,  // Water
+    2,  // Life
+    2,  // Robot
+    2,  // Dolphin
+    6, // AI Partner
 ];
 
-const LAST_SUCCESS_TIMEOUT_MULTIPLIER: u32 = 3;
+const LAST_SUCCESS_TIMEOUT_MULTIPLIER: u32 = 6;
 
 pub struct Brain {
     bag: ExplorerBag,
@@ -77,7 +77,7 @@ impl Brain {
         // Update needs based on the inserted resource
         self.needs.decrease_need(&resource);
         // Update last success
-        self.last_success = Instant::now();
+        //self.last_success = Instant::now();
 
         self.bag.insert(resource);
     }
@@ -177,12 +177,34 @@ impl Brain {
 
     /// Generates a Move Intention by choosing where to move
     fn generate_move_intention(&mut self, current_planet: ID) -> Intention {
-        let neighbors = self.galaxy_map.planet_neighbors(current_planet);
+        let neighbors = self.galaxy_map.planet_neighbors(current_planet).to_vec();
         if neighbors.is_empty() {
             return Intention::Move(None);
         }
-        let next_planet = neighbors[0]; // TODO: choose a random neighbor
-        Intention::Move(Some(next_planet))
+
+        let capabilities: Vec<(ID, Vec10)> = neighbors
+            .iter()
+            .map(|&id| (id, self.galaxy_map.planet_capabilities(id)))
+            .collect();
+
+        if let Some(&(id, _)) = capabilities.iter().find(|(_, cap)| cap.is_zero()) {
+            return Intention::Move(Some(id));
+        }
+
+        let mut scores: Vec<(ID, u64)> = capabilities
+            .iter()
+            .map(|&(id, cap)| (id, cap.dot(&self.needs)))
+            .collect();
+
+        scores.sort_by_key(|&(_, score)| std::cmp::Reverse(score));
+
+        let id = if scores.len() >= 2 && rand::random::<f32>() < 0.3 {
+            scores[1].0
+        } else {
+            scores[0].0
+        };
+
+        Intention::Move(Some(id))
     }
 
     /// Checks if the last success was too long ago
