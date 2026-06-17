@@ -1,4 +1,4 @@
-use crate::genetics::{Brain, Intention};
+use crate::brain::{Brain, Intention};
 use crate::logging_utils::{log_debug, log_error, log_info, log_trace, log_warning};
 use crate::payload;
 use crate::planet_stats::PlanetStats;
@@ -21,7 +21,7 @@ pub struct Explorer {
     planet_receiver: Receiver<PlanetToExplorer>,
     game_step: Duration,
     manual_mode: bool,
-    path : Vec<ID>,
+    path: Vec<ID>,
 }
 
 impl Explorer {
@@ -34,10 +34,7 @@ impl Explorer {
         game_step: Duration,
     ) -> Self {
         let brain = Brain::new(game_step);
-        log_debug(
-            payload!(action : "Nico ExplorerAI ready", explorer_id : id)
-        );
-        //println!("Genome: {:?}", brain.get_genome());
+        log_debug(payload!(action : "Nico ExplorerAI ready", explorer_id : id));
         Explorer {
             id,
             brain,
@@ -47,7 +44,7 @@ impl Explorer {
             planet_stats: PlanetStats::new(),
             game_step,
             manual_mode: true,
-            path : Vec::new()
+            path: Vec::new(),
         }
     }
     pub(crate) fn to_orchestrator(
@@ -55,10 +52,10 @@ impl Explorer {
         msg: ExplorerToOrchestrator<ExplorerBagContent>,
     ) -> Result<(), String> {
         log_trace(payload!(
-                action : "Nico sending to the Orchestrator",
-                explorer_id : self.id,
-                msg : format!("{msg:?}")
-            ));
+            action : "Nico sending to the Orchestrator",
+            explorer_id : self.id,
+            msg : format!("{msg:?}")
+        ));
         let res = self
             .orchestrator_sender
             .send(msg)
@@ -74,7 +71,6 @@ impl Explorer {
     }
     pub(crate) fn to_planet(&self, msg: ExplorerToPlanet) -> Result<(), String> {
         if let Some(ref sender) = self.planet_stats.sender() {
-            //println!(" *** SENDING TO PLANET {} MSG: {msg:?}", self.planet_stats.id().unwrap())
             log_debug(payload!(
                 action : "Nico sending to Planet",
                 explorer_id : self.id,
@@ -133,7 +129,6 @@ impl Explorer {
     ) -> Result<(), String> {
         match message {
             PlanetToExplorer::SupportedResourceResponse { resource_list } => {
-                // TODO: might want to send it anyway
                 // Send to Orchestrator only if it is in manual mode
                 if self.manual_mode {
                     self.to_orchestrator(ExplorerToOrchestrator::SupportedResourceResult {
@@ -141,10 +136,11 @@ impl Explorer {
                         supported_resources: resource_list.clone(),
                     })?;
                 }
-                self.planet_stats.update_resources(resource_list);
+                self.planet_stats.update_resources(resource_list.clone());
+                self.brain
+                    .set_planet_basic_resources(self.planet_stats.id().unwrap_or(0), resource_list);
             }
             PlanetToExplorer::SupportedCombinationResponse { combination_list } => {
-                // TODO: might want to send it anyway
                 // Send to Orchestrator only if it is in manual mode
                 if self.manual_mode {
                     self.to_orchestrator(ExplorerToOrchestrator::SupportedCombinationResult {
@@ -152,20 +148,26 @@ impl Explorer {
                         combination_list: combination_list.clone(),
                     })?;
                 }
-                self.planet_stats.update_combinations(combination_list);
+                self.planet_stats
+                    .update_combinations(combination_list.clone());
+                self.brain.set_planet_complex_resources(
+                    self.planet_stats.id().unwrap_or(0),
+                    combination_list,
+                );
             }
             PlanetToExplorer::GenerateResourceResponse { resource } => {
                 let generated = if let Some(r) = resource {
                     let resource_type = r.get_type();
-                    self.brain.insert_resource(GenericResource::BasicResources(r), self.planet_stats.id().unwrap_or(0));
+                    self.brain
+                        .insert_resource(GenericResource::BasicResources(r));
                     log_debug(
-                        payload!(action : "Nico generated a basic resource", explorer_id : self.id, basic_resource : format!("{:?}", resource_type),others_in_bag : format!("{:?}", self.brain.get_bag_content())),
+                        payload!(action : "Nico generated a basic resource", explorer_id : self.id, basic_resource : format!("{:?}", resource_type)),
                     );
                     Ok(())
                 } else {
-                    self.brain.on_no_action();
+                    //self.brain.on_no_action();
                     log_debug(
-                        payload!(action : "Planet did not generate basic resource for Nico", explorer_id : self.id)
+                        payload!(action : "Planet did not generate basic resource for Nico", explorer_id : self.id),
                     );
                     Ok(())
                 };
@@ -181,23 +183,22 @@ impl Explorer {
                 let generated = match complex_response {
                     Ok(r) => {
                         log_debug(
-                            payload!(action : "Nico generated a complex resource", explorer_id : self.id, basic_resource : format!("{:?}", r.get_type()),others_in_bag : format!("{:?}", self.brain.get_bag_content())),
+                            payload!(action : "Nico generated a complex resource", explorer_id : self.id, basic_resource : format!("{:?}", r.get_type())),
                         );
                         self.brain
-                            .insert_resource(GenericResource::ComplexResources(r), self.planet_stats.id().unwrap_or(0));
+                            .insert_resource(GenericResource::ComplexResources(r));
                         Ok(())
                     }
                     Err((_error, r1, r2)) => {
                         self.brain.reinsert_resource(r1);
                         self.brain.reinsert_resource(r2);
-                        self.brain.on_no_action();
+                        //self.brain.on_no_action();
                         log_debug(
-                            payload!(action : "Planet did not combine complex resource for Nico", explorer_id : self.id)
+                            payload!(action : "Planet did not combine complex resource for Nico", explorer_id : self.id),
                         );
                         Ok(())
                     }
                 };
-                // TODO: might want to send it anyway
                 // Send to Orchestrator only if it is in manual mode
                 if self.manual_mode {
                     self.to_orchestrator(ExplorerToOrchestrator::GenerateResourceResponse {
@@ -255,34 +256,36 @@ impl Explorer {
                         msg: request,
                     })?;
                 } else if self.manual_mode {
-                    self.to_orchestrator(ExplorerToOrchestrator::CombineResourceResponse {explorer_id : self.id, generated : Err("Explorer did not have ingredients".into())})?;
+                    self.to_orchestrator(ExplorerToOrchestrator::CombineResourceResponse {
+                        explorer_id: self.id,
+                        generated: Err("Explorer did not have ingredients".into()),
+                    })?;
                 }
                 Ok(false)
             }
             OrchestratorToExplorer::BagContentRequest => {
                 self.to_orchestrator(ExplorerToOrchestrator::BagContentResponse {
                     explorer_id: self.id,
-                    bag_content: self.brain.get_bag_content(),
+                    bag_content: self.brain.bag_content(),
                 })?;
                 Ok(false)
             }
             OrchestratorToExplorer::NeighborsResponse { neighbors } => {
-                // If we have no neighbors, we are blocked here.
-                //println!("### Neighbors: {neighbors:?}");
+                /* TODO
                 if neighbors.is_empty() {
-                    //println!("\n???? BRO NEIGHBORS IS EMPTYYYYY\n");
                     self.brain.got_blocked();
                 } else {
                     self.brain.unblock();
-                }
-                self.planet_stats.update_neighbors(neighbors);
+                }*/
+                self.planet_stats.update_neighbors(neighbors.clone());
+                self.brain
+                    .set_planet_neighbors(self.planet_stats.id().unwrap_or(0), neighbors);
                 Ok(false)
             }
         }
     }
 
     fn handle_supported_resources_request(&mut self) -> Result<bool, String> {
-       //println!("--- SUPPORTED RESOURCES REQUEST FROM ORCHESTRATOR !!!!!");
         if let Some(list) = self.planet_stats.resources() {
             self.to_orchestrator(ExplorerToOrchestrator::SupportedResourceResult {
                 explorer_id: self.id,
@@ -295,8 +298,8 @@ impl Explorer {
         }
         Ok(false)
     }
+
     fn handle_supported_combination_request(&mut self) -> Result<bool, String> {
-       //println!("--- SUPPORTED COMBINATIONS REQUEST FROM ORCHESTRATOR !!!!!");
         if let Some(list) = self.planet_stats.combinations() {
             self.to_orchestrator(ExplorerToOrchestrator::SupportedCombinationResult {
                 explorer_id: self.id,
@@ -309,13 +312,14 @@ impl Explorer {
         }
         Ok(false)
     }
+
     fn execute_intention(&mut self) -> Result<(), String> {
-        let intention = self.brain.decide(&mut self.planet_stats);
+        let intention = self.brain.think(self.planet_stats.id().unwrap_or(0));
+        
         log_debug(payload!(
             intention : format!("Nico wants to: {intention:?}"),
             explorer_id: self.id,
         ));
-       //println!(" ++++ INTENTION: {intention:?} +++ PERFORMANCE: {}", self.brain.get_performance());
         match intention {
             Intention::Generate(Some(resource)) => {
                 self.to_planet(ExplorerToPlanet::GenerateResourceRequest {
@@ -348,22 +352,28 @@ impl Explorer {
                 ));
                 //self.brain.got_blocked();
                 // Try asking for neighbors again, maybe we are not updated
-                if !self.planet_stats.has_neighbors() && let Some(planet_id) = self.planet_stats.id() {
-                   //println!("!!! ASKING ORCHESTRATOR FOR NEIGHBORS |||");
+                if !self.planet_stats.has_neighbors()
+                    && let Some(planet_id) = self.planet_stats.id()
+                {
                     self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
                         explorer_id: self.id,
                         current_planet_id: planet_id,
                     })?;
+                } else {
+                    self.brain.set_planet_neighbors(
+                        self.planet_stats.id().unwrap_or(0),
+                        self.planet_stats.neighbors().cloned().unwrap_or_default(),
+                    );
                 }
                 Ok(())
             }
             _ => {
-                //println!("--- INTENTION HAD NONE BRUHHH; WAS : {intention:?}");
-                self.brain.on_no_action();
+                //self.brain.on_no_action();
                 Ok(())
             }
         }
     }
+
     fn reset(&mut self) -> Result<bool, String> {
         // TODO: actually reset AI
         self.manual_mode = true;
@@ -376,6 +386,7 @@ impl Explorer {
         ));
         Ok(false)
     }
+
     fn stop(&mut self) -> Result<bool, String> {
         self.manual_mode = true;
         self.to_orchestrator(ExplorerToOrchestrator::StopExplorerAIResult {
@@ -387,50 +398,25 @@ impl Explorer {
         ));
         Ok(false)
     }
+
     fn start(&mut self) -> Result<bool, String> {
         self.manual_mode = false;
         self.to_orchestrator(ExplorerToOrchestrator::StartExplorerAIResult {
             explorer_id: self.id,
         })?;
-
-
-        // TODO: might be redundant
-        // Ask Planet for its supported resources and combinations
-        if !self.planet_stats.has_resources() {
-            self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
-                explorer_id: self.id,
-            })?;
-        }
-        if !self.planet_stats.has_combinations() {
-            self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
-                explorer_id: self.id,
-            })?;
-        }
-
-        // Ask Orchestrator for neighbors of the current Planet
-        if self.planet_stats.has_neighbors() && let Some(id) = self.planet_stats.id(){
-            self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
-                explorer_id: self.id,
-                current_planet_id: id,
-            })?;
-        }
-
         log_info(payload!(action : "Nico ExplorerAI correctly started", explorer_id : self.id));
 
         Ok(false)
     }
+
     fn kill(&mut self) -> Result<bool, String> {
         log_info(payload!(
             action : "Nico has been killed, bye bye :(",
             explorer_id : self.id,
-            performance : self.brain.get_performance(),
-            /*genome : format!("{:?}",self.brain.get_genome()),*/
-            bag_content : format!("{:?}", self.brain.get_bag_content()),
+            performance : self.brain.performance(),
+            bag_content : format!("{:?}", self.brain.bag_content()),
             path : format!("{:?}", self.path)
         ));
-       //println!("Performance: {}", self.brain.get_performance());
-       //println!("Bag Content : {:?}", self.brain.get_bag_content());
-       //println!("Path: {:?}", self.path);
         self.to_orchestrator(ExplorerToOrchestrator::KillExplorerResult {
             explorer_id: self.id,
         })?;
