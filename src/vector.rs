@@ -1,11 +1,8 @@
 use std::{collections::HashSet, ops::Mul};
 
-use common_game::components::resource::{
-    AIPartner, BasicResourceType, ComplexResource, ComplexResourceRequest, ComplexResourceType,
-    GenericResource,
-};
+use common_game::components::resource::{AIPartner, BasicResourceType, ComplexResource, ComplexResourceRequest, ComplexResourceType, GenericResource, ResourceType};
 
-use crate::resources::{basic_resource_index, complex_resource_index};
+use crate::resources::{basic_resource_index, complex_resource_index, resource_index};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Vec10([u64; 10]);
@@ -31,6 +28,10 @@ impl Vec10 {
         Vec10([0; 10])
     }
 
+    pub(crate) fn is_zero(&self) -> bool {
+        self.0 == [0; 10]
+    }
+
     pub(crate) fn dot(&self, rhs: &Vec10) -> u64 {
         self.0.iter().zip(rhs.0.iter()).map(|(a, b)| a * b).sum()
     }
@@ -47,14 +48,14 @@ impl Vec10 {
     pub(crate) fn set_basic(&mut self, resources: &HashSet<BasicResourceType>) {
         self.clear_basic();
         for basic in resources {
-            self.0[basic_resource_index(*basic)] = 1;
+            self.0[resource_index(ResourceType::Basic(*basic))] = 1;
         }
     }
 
     pub(crate) fn set_complex(&mut self, resources: &HashSet<ComplexResourceType>) {
         self.clear_complex();
         for complex in resources {
-            self.0[complex_resource_index(*complex)] = 1;
+            self.0[resource_index(ResourceType::Complex(*complex))] = 1;
         }
     }
 
