@@ -473,7 +473,6 @@ impl ExplorerAI for Explorer {
                 }
                 recv(self.planet_receiver) -> msg => {
                     let msg = msg.expect("Error while receiving from Planet");
-                   //println!(" *** GOT FROM PLANET {}: {msg:?}", self.planet_stats.id().unwrap());
                     log_debug(payload!(
                         action : "Nico received from Planet",
                         explorer_id : self.id,
