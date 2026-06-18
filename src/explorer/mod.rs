@@ -26,6 +26,14 @@ pub struct Explorer {
 }
 
 impl Explorer {
+    /// Creates a Nico Explorer.
+    /// - `id`: The ID of the explorer
+    /// - `tx_explorer_to_orchestrator`: The Sender to send messages from the Explorer to the Orchestrator
+    /// - `rx_orchestrator_to_explorer`: The Receiver to receive messages from the Orchestrator to the Explorer
+    /// - `rx_planet_to_explorer`: The Receiver to receive messages from the Planets to the Explorer
+    /// - `game_step`: The game step
+    ///
+    /// Returns a Nico Explorer instance.
     #[must_use]
     pub fn new(
         id: ID,
@@ -51,6 +59,9 @@ impl Explorer {
 }
 
 impl ExplorerAI for Explorer {
+    /// Runs the Explorer.
+    ///
+    /// Returns an error if an error occurred during execution.
     fn run(&mut self) -> Result<(), String> {
         let mut next_tick = Instant::now() + self.game_step;
         loop {

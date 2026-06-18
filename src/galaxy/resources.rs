@@ -1,6 +1,6 @@
 use common_explorer::ExplorerBag;
 use common_game::components::resource::{BasicResourceType, ComplexResourceType, ResourceType};
-use crate::brain::math::Vec10;
+use crate::brain::math::ResourceVector;
 use crate::config::{BASIC_RESOURCE_WEIGHT, COMPLEX_RESOURCE_WEIGHT, RESOURCES};
 
 
@@ -23,16 +23,16 @@ pub fn resource_value(resource: ResourceType) -> u64 {
 }
 
 /// Helper to build the bag vector from explorer bag
-pub fn build_bag_vector(bag: &ExplorerBag) -> Vec10 {
+pub fn build_bag_vector(bag: &ExplorerBag) -> ResourceVector {
     let mut bag_vector = [0; 10];
     for (resource, count) in &bag.to_content().resources_amounts {
         bag_vector[resource_index(*resource)] += *count;
     }
-    Vec10::new(bag_vector)
+    ResourceVector::new(bag_vector)
 }
 
 /// Helper to build the crafting vector from explorer bag
-pub fn build_crafting_vector(bag_vector: &Vec10) -> Vec10 {
+pub fn build_crafting_vector(bag_vector: &ResourceVector) -> ResourceVector {
     let b = bag_vector.get();
     let mut cv = [1; 10];
 
@@ -42,5 +42,5 @@ pub fn build_crafting_vector(bag_vector: &Vec10) -> Vec10 {
     cv[7] = u64::from(b[3] > 0 && b[6] > 0); // Robot
     cv[8] = u64::from(b[5] > 0 && b[6] > 0); // Dolphin
     cv[9] = u64::from(b[4] > 0 && b[7] > 0); // AIPartner
-    Vec10::new(cv)
+    ResourceVector::new(cv)
 }

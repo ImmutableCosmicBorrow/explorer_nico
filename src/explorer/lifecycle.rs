@@ -5,6 +5,9 @@ use crate::brain::intention::Intention;
 use crate::logging::{log_debug, log_info};
 
 impl Explorer {
+    /// Thinks of the next intention and executes it.
+    ///
+    /// Returns an error if any send of a message fails.
     pub(crate) fn execute_intention(&mut self) -> Result<(), String> {
         let intention = self.brain.think(self.planet_stats.id().unwrap_or(0));
 
@@ -66,6 +69,10 @@ impl Explorer {
         }
     }
 
+    /// Resets the Explorer
+    ///
+    /// Returns an error if any send of a message fails.
+    /// Otherwise, returns `Ok(false)`, indicating that the Explorer has not been killed.
     pub(crate) fn reset(&mut self) -> Result<bool, String> {
         // TODO: actually reset AI
         self.manual_mode = true;
@@ -80,6 +87,10 @@ impl Explorer {
         Ok(false)
     }
 
+    /// Stops the Explorer, transitioning it to manual mode.
+    ///
+    /// Returns an error if any send of a message fails.
+    /// Otherwise, returns `Ok(false)`, indicating that the Explorer has not been killed.
     pub(crate) fn stop(&mut self) -> Result<bool, String> {
         self.manual_mode = true;
         self.to_orchestrator(ExplorerToOrchestrator::StopExplorerAIResult {
@@ -92,6 +103,10 @@ impl Explorer {
         Ok(false)
     }
 
+    /// Starts the Explorer, transitioning it to AI mode.
+    ///
+    /// Returns an error if any send of a message fails.
+    /// Otherwise, returns `Ok(false)`, indicating that the Explorer has not been killed.
     pub(crate) fn start(&mut self) -> Result<bool, String> {
         self.manual_mode = false;
         self.to_orchestrator(ExplorerToOrchestrator::StartExplorerAIResult {
@@ -111,6 +126,10 @@ impl Explorer {
         Ok(false)
     }
 
+    /// Kills the Explorer
+    ///
+    /// Returns an error if any send of a message fails.
+    /// Otherwise, returns `Ok(true)`, indicating that the Explorer has been killed.
     pub(crate) fn kill(&mut self) -> Result<bool, String> {
         log_info(payload!(
             action : "Nico has been killed, bye bye :(",

@@ -1,12 +1,12 @@
 use std::collections::{HashMap, HashSet};
-use crate::brain::math::Vec10;
+use crate::brain::math::ResourceVector;
 use common_game::{
     components::resource::{BasicResourceType, ComplexResourceType},
     utils::ID,
 };
 
 pub struct PlanetInfo {
-    capabilities: Vec10,
+    capabilities: ResourceVector,
     neighbors: Vec<ID>,
 }
 
@@ -17,12 +17,12 @@ pub struct GalaxyMap {
 impl PlanetInfo {
     pub(crate) fn new() -> Self {
         PlanetInfo {
-            capabilities: Vec10::zeros(),
+            capabilities: ResourceVector::zeros(),
             neighbors: Vec::new(),
         }
     }
 
-    pub(crate) fn capabilities(&self) -> Vec10 {
+    pub(crate) fn capabilities(&self) -> ResourceVector {
         self.capabilities
     }
 
@@ -50,7 +50,7 @@ impl GalaxyMap {
         }
     }
 
-    pub(crate) fn planet_capabilities(&mut self, planet_id: ID) -> Vec10 {
+    pub(crate) fn planet_capabilities(&mut self, planet_id: ID) -> ResourceVector {
         self.planets
             .entry(planet_id)
             .or_insert(PlanetInfo::new())

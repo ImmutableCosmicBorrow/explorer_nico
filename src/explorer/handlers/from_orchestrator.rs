@@ -5,6 +5,10 @@ use crossbeam_channel::Sender;
 use crate::Explorer;
 
 impl Explorer {
+    /// Tries to move to a new Planet. This succeeds if `new_sender` is `Some`.
+    ///
+    /// Returns an error if any send of a message fails.
+    /// Otherwise, returns `Ok(false)` indicating that the Explorer has not been killed.
     pub(crate) fn try_move_to(
         &mut self,
         planet_id: ID,
@@ -47,6 +51,10 @@ impl Explorer {
         Ok(false)
     }
 
+    /// Handles the received Orchestrator message.
+    ///
+    /// Returns an error if any send of a message fails.
+    /// Otherwise, returns a `Ok(bool)`, indicating whether the Explorer has been killed or not.
     pub(crate) fn handle_orchestrator_message(
         &mut self,
         message: OrchestratorToExplorer,
@@ -123,6 +131,10 @@ impl Explorer {
         }
     }
 
+    /// Handles a `SupportedResourceRequest`
+    ///
+    /// Returns an error if any send of a message fails.
+    /// Otherwise, returns `Ok(false)` indicating that the Explorer has not been killed.
     fn handle_supported_resources_request(&mut self) -> Result<bool, String> {
         if self.manual_mode {
             self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
@@ -132,6 +144,10 @@ impl Explorer {
         Ok(false)
     }
 
+    /// Handles a `SupportedCombinationRequest`
+    ///
+    /// Returns an error if any send of a message fails.
+    /// Otherwise, returns `Ok(false)` indicating that the Explorer has not been killed.
     fn handle_supported_combination_request(&mut self) -> Result<bool, String> {
         if self.manual_mode {
             self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {

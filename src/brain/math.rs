@@ -5,37 +5,58 @@ use common_game::components::resource::{BasicResourceType, ComplexResourceReques
 use crate::galaxy::resources::resource_index;
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Vec10([u64; 10]);
+pub(crate) struct ResourceVector([u64; 10]);
 
-impl Mul for Vec10 {
-    type Output = Vec10;
+impl Mul for ResourceVector {
+    type Output = ResourceVector;
 
-    fn mul(self, rhs: Vec10) -> Self::Output {
-        Vec10(std::array::from_fn(|i| self.0[i] * rhs.0[i]))
+    /// Performs the element-wise multiplication between two `ResourceVector`.
+    ///
+    /// Returns the `ResourceVector` result
+    fn mul(self, rhs: ResourceVector) -> Self::Output {
+        ResourceVector(std::array::from_fn(|i| self.0[i] * rhs.0[i]))
     }
 }
 
-impl Vec10 {
+impl ResourceVector {
+    /// Creates a new `ResourceVector` from an array.
+    ///
+    /// Returns the new `ResourceVector`
     pub(crate) fn new(vec: [u64; 10]) -> Self {
-        Vec10(vec)
+        ResourceVector(vec)
     }
 
+    /// Creates a new `ResourceVector` initialized with all zeros.
+    ///
+    /// Returns the new `ResourceVector`
+    pub(crate) fn zeros() -> Self {
+        ResourceVector([0; 10])
+    }
+
+    /// Gets the internal array of a `ResourceVector`.
+    ///
+    /// Returns a `[u64; 10]`
     pub(crate) fn get(&self) -> [u64; 10] {
         self.0
     }
 
-    pub(crate) fn zeros() -> Self {
-        Vec10([0; 10])
-    }
-
+    /// Checks if a `ResourceVector` contains all zeros.
+    ///
+    /// Returns a `bool`
     pub(crate) fn is_zero(&self) -> bool {
         self.0 == [0; 10]
     }
 
-    pub(crate) fn dot(&self, rhs: &Vec10) -> u64 {
+    /// Performs the dot product between two `ResourceVector`.
+    ///
+    /// Returns the `u64` result.
+    pub(crate) fn dot(&self, rhs: &ResourceVector) -> u64 {
         self.0.iter().zip(rhs.0.iter()).map(|(a, b)| a * b).sum()
     }
-    
+
+    /// Performs a softmax on the internal array and samples an element index from it.
+    ///
+    /// Returns the sampled `usize` index.
     pub fn softmax_sample(&self, temperature: f64) -> usize {
         #[allow(clippy::cast_precision_loss)]
         let scores: Vec<f64> = self.0.iter().map(|&x| x as f64).collect();
@@ -52,6 +73,8 @@ impl Vec10 {
             .map_or(0, |(i, _)| i)
     }
 
+    /// Sets the basic resources of a `ResourceVector`, given the `HashSet<BasicResourceType>`.
+    /// The basic resources correspond to the first four entries of the array.
     pub(crate) fn set_basic(&mut self, resources: &HashSet<BasicResourceType>) {
         self.clear_basic();
         for basic in resources {
@@ -59,6 +82,8 @@ impl Vec10 {
         }
     }
 
+    /// Sets the complex resources of a `ResourceVector`, given the `HashSet<ComplexResourceType>`.
+    /// The complex resources correspond to the last six entries of the array.
     pub(crate) fn set_complex(&mut self, resources: &HashSet<ComplexResourceType>) {
         self.clear_complex();
         for complex in resources {
@@ -66,14 +91,17 @@ impl Vec10 {
         }
     }
 
+    /// Sets to zero the basic resources of a `ResourceVector`, which correspond to the first four entries
     pub(crate) fn clear_basic(&mut self) {
         self.0[0..4].fill(0);
     }
 
+    /// Sets to zero the complex resources of a `ResourceVector`, which correspond to the last six entries
     pub(crate) fn clear_complex(&mut self) {
         self.0[4..10].fill(0);
     }
 
+    /// Decreases by one the entry of the `ResourceVector` corresponding to the given `GenericResource`.
     pub(crate) fn decrease_need(&mut self, resource: &GenericResource) {
         match resource {
             GenericResource::BasicResources(basic) => {
@@ -90,6 +118,7 @@ impl Vec10 {
         }
     }
 
+    /// Increases by one the entry of the `ResourceVector` corresponding to the given `GenericResource`.
     pub(crate) fn increase_needs(&mut self, complex_request: &ComplexResourceRequest) {
         let indexes: (usize, usize) = match complex_request {
             ComplexResourceRequest::Diamond(..) => (0, 0),

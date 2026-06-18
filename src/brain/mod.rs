@@ -14,7 +14,7 @@ use common_game::{
     utils::ID,
 };
 use crate::brain::intention::Intention;
-use crate::brain::math::Vec10;
+use crate::brain::math::ResourceVector;
 use crate::config::{INITIAL_NEEDS, LAST_SUCCESS_TIMEOUT_MULTIPLIER, SOFTMAX_TEMPERATURE};
 use crate::galaxy::galaxy_map::GalaxyMap;
 use crate::galaxy::resources::build_bag_vector;
@@ -26,7 +26,7 @@ use crate::galaxy::resources::{build_crafting_vector, resource_value};
 
 pub struct Brain {
     bag: ExplorerBag,
-    needs: Vec10,
+    needs: ResourceVector,
     galaxy_map: GalaxyMap,
     performance: u64,
     game_step: Duration,
@@ -38,7 +38,7 @@ impl Brain {
     pub(crate) fn new(game_step: Duration) -> Self {
         Brain {
             bag: ExplorerBag::new(),
-            needs: Vec10::new(INITIAL_NEEDS),
+            needs: ResourceVector::new(INITIAL_NEEDS),
             galaxy_map: GalaxyMap::new(),
             performance: 0,
             game_step,
@@ -170,7 +170,7 @@ impl Brain {
             return Intention::Move(None);
         }
 
-        let capabilities: Vec<(ID, Vec10)> = neighbors
+        let capabilities: Vec<(ID, ResourceVector)> = neighbors
             .iter()
             .map(|id| (*id, self.galaxy_map.planet_capabilities(*id)))
             .collect();

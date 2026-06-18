@@ -5,6 +5,9 @@ use crate::{payload, Explorer};
 use crate::logging::log_debug;
 
 impl Explorer {
+    /// Handles the received Planet message.
+    ///
+    /// Returns an error if any send of a message fails.
     pub(crate) fn handle_planet_message(
         &mut self,
         message: PlanetToExplorer,

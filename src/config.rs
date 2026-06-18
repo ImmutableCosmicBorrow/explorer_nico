@@ -5,15 +5,15 @@ pub(crate) const BASIC_RESOURCE_WEIGHT: u64 = 10;
 pub(crate) const COMPLEX_RESOURCE_WEIGHT: u64 = 15;
 
 pub(crate) const INITIAL_NEEDS: [u64; 10] = [
-    3,  // Carbon
-    3,  // Hydrogen
-    3,  // Oxygen
-    3,  // Silicon
-    3,  // Diamond
-    3,  // Water
-    3,  // Life
-    3,  // Robot
-    4,  // Dolphin
+    4,  // Carbon
+    4,  // Hydrogen
+    4,  // Oxygen
+    4,  // Silicon
+    5,  // Diamond
+    5,  // Water
+    5,  // Life
+    5,  // Robot
+    6,  // Dolphin
     10, // AI Partner
 ];
 
