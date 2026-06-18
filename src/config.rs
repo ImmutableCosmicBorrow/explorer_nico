@@ -1,19 +1,19 @@
 use common_game::components::resource::{BasicResourceType, ComplexResourceType, ResourceType};
 
-pub(crate) const SOFTMAX_TEMPERATURE: f64 = 10.0;
+pub(crate) const SOFTMAX_TEMPERATURE: f64 = 5.0;
 pub(crate) const BASIC_RESOURCE_WEIGHT: u64 = 10;
 pub(crate) const COMPLEX_RESOURCE_WEIGHT: u64 = 15;
 
 pub(crate) const INITIAL_NEEDS: [u64; 10] = [
-    4,  // Carbon
-    4,  // Hydrogen
-    4,  // Oxygen
-    4,  // Silicon
-    5,  // Diamond
-    5,  // Water
-    5,  // Life
-    5,  // Robot
-    6,  // Dolphin
+    2,  // Carbon
+    2,  // Hydrogen
+    2,  // Oxygen
+    2,  // Silicon
+    3,  // Diamond
+    3,  // Water
+    3,  // Life
+    3,  // Robot
+    4,  // Dolphin
     10, // AI Partner
 ];
 
