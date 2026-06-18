@@ -23,7 +23,7 @@ impl Explorer {
                 }
                 self.brain.set_planet_basic_resources(
                     self.planet_stats.id().unwrap_or(0),
-                    &resource_list,
+                    resource_list.clone(),
                 );
             }
             PlanetToExplorer::SupportedCombinationResponse { combination_list } => {
@@ -36,7 +36,7 @@ impl Explorer {
                 }
                 self.brain.set_planet_complex_resources(
                     self.planet_stats.id().unwrap_or(0),
-                    &combination_list,
+                    combination_list.clone(),
                 );
             }
             PlanetToExplorer::GenerateResourceResponse { resource } => {

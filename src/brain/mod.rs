@@ -53,6 +53,14 @@ impl Brain {
         self.performance
     }
 
+    pub(crate) fn supported_resources(&mut self, planet : ID) -> HashSet<BasicResourceType> {
+        self.galaxy_map.planet_supported_resources(planet)
+    }
+
+    pub(crate) fn supported_combinations(&mut self, planet : ID) -> HashSet<ComplexResourceType> {
+        self.galaxy_map.planet_supported_combinations(planet)
+    }
+
     /// Sets the needs `ResourceVector` to reflect the given `ResourceType`
     pub(crate) fn set_needs(&mut self, res: ResourceType) {
         self.needs = ResourceVector::generate_resource_needs(res);
@@ -97,7 +105,7 @@ impl Brain {
     pub(crate) fn set_planet_basic_resources(
         &mut self,
         planet_id: ID,
-        resources: &HashSet<BasicResourceType>,
+        resources: HashSet<BasicResourceType>,
     ) {
         self.galaxy_map
             .set_planet_basic_resources(planet_id, resources);
@@ -107,7 +115,7 @@ impl Brain {
     pub(crate) fn set_planet_complex_resources(
         &mut self,
         planet_id: ID,
-        resources: &HashSet<ComplexResourceType>,
+        resources: HashSet<ComplexResourceType>,
     ) {
         self.galaxy_map
             .set_planet_complex_resources(planet_id, resources);
