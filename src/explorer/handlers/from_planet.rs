@@ -94,21 +94,27 @@ impl Explorer {
                 }
             }
             PlanetToExplorer::Stopped => {
-                if self.pending_resources_request{
-                    let supported_resources = self.brain.supported_resources(self.planet_stats.id().expect("Nico is not in a Planet"));
+                if self.pending_resources_request {
+                    let supported_resources = self.brain.supported_resources(
+                        self.planet_stats.id().expect("Nico is not in a Planet"),
+                    );
 
-                    self.to_orchestrator(
-                        ExplorerToOrchestrator::SupportedResourceResult { explorer_id: self.id, supported_resources }
-                    )?;
+                    self.to_orchestrator(ExplorerToOrchestrator::SupportedResourceResult {
+                        explorer_id: self.id,
+                        supported_resources,
+                    })?;
 
                     self.pending_resources_request = false;
                 }
-                if self.pending_combinations_request{
-                    let combination_list = self.brain.supported_combinations(self.planet_stats.id().expect("Nico is not in a Planet"));
+                if self.pending_combinations_request {
+                    let combination_list = self.brain.supported_combinations(
+                        self.planet_stats.id().expect("Nico is not in a Planet"),
+                    );
 
-                    self.to_orchestrator(
-                        ExplorerToOrchestrator::SupportedCombinationResult { explorer_id: self.id, combination_list }
-                    )?;
+                    self.to_orchestrator(ExplorerToOrchestrator::SupportedCombinationResult {
+                        explorer_id: self.id,
+                        combination_list,
+                    })?;
 
                     self.pending_combinations_request = false;
                 }

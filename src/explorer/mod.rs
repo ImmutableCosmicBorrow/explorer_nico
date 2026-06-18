@@ -56,7 +56,7 @@ impl Explorer {
             planet_stats: PlanetStats::new(),
             game_step,
             manual_mode: true,
-            pending_resources_request : false,
+            pending_resources_request: false,
             pending_combinations_request: false,
         }
     }
