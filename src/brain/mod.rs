@@ -131,12 +131,17 @@ impl Brain {
             return self.generate_move_intention(current_planet);
         }
 
-        let planet_capabilies = self.galaxy_map.planet_capabilities(current_planet);
+        let planet_capabilities = self.galaxy_map.planet_capabilities(current_planet);
         let bag_vector = build_bag_vector(&self.bag);
         let crafting_vector = build_crafting_vector(&bag_vector);
 
-        let possibilites = self.needs * planet_capabilies * crafting_vector;
-        let choice = possibilites.max_index();
+        let possibilities = self.needs * planet_capabilities * crafting_vector;
+
+        if possibilities.is_zero() {
+            return self.generate_move_intention(current_planet);
+        }
+
+        let choice = possibilities.softmax_sample(SOFTMAX_TEMPERATURE);
 
         self.generate_intention(choice)
     }
@@ -194,8 +199,7 @@ impl Brain {
             .find(|(_, p)| { r -= **p; r <= 0.0 })
             .map_or(scores[0].0, |((id, _), _)| *id);
 
-        eprintln!("scores: {scores:?}");
-        eprintln!("probs: {probs:?}");
+
 
         Intention::Move(Some(id))
     }

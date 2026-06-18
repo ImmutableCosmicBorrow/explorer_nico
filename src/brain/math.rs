@@ -35,13 +35,21 @@ impl Vec10 {
     pub(crate) fn dot(&self, rhs: &Vec10) -> u64 {
         self.0.iter().zip(rhs.0.iter()).map(|(a, b)| a * b).sum()
     }
+    
+    pub fn softmax_sample(&self, temperature: f64) -> usize {
+        #[allow(clippy::cast_precision_loss)]
+        let scores: Vec<f64> = self.0.iter().map(|&x| x as f64).collect();
+        let max = scores.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+        let exps: Vec<f64> = scores.iter().map(|s| {
+            if *s <= 0.0 { 0.0 } else { ((s - max) / temperature).exp() }
+        }).collect();
+        let sum: f64 = exps.iter().sum();
+        let probs: Vec<f64> = exps.iter().map(|e| e / sum).collect();
 
-    pub(crate) fn max_index(&self) -> usize {
-        self.0
-            .iter()
-            .enumerate()
-            .max_by_key(|&(_, value)| value)
-            .map_or(0, |(index, _)| index)
+        let mut r = rand::random::<f64>();
+        probs.iter().enumerate()
+            .find(|(_, p)| { r -= *p; r <= 0.0 })
+            .map_or(0, |(i, _)| i)
     }
 
     pub(crate) fn set_basic(&mut self, resources: &HashSet<BasicResourceType>) {
