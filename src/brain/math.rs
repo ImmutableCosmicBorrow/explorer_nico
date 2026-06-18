@@ -1,10 +1,10 @@
 use std::{collections::HashSet, ops::Mul};
 
+use crate::config::NEEDS_MAGIC_NUMBER;
+use crate::galaxy::resources::resource_index;
 use common_game::components::resource::{
     BasicResourceType, ComplexResourceRequest, ComplexResourceType, GenericResource, ResourceType,
 };
-use crate::config::NEEDS_MAGIC_NUMBER;
-use crate::galaxy::resources::resource_index;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ResourceVector([u64; 10]);
@@ -41,12 +41,12 @@ impl ResourceVector {
     pub(crate) fn generate_complex_needs(complex: ComplexResourceType) -> Self {
         let n = NEEDS_MAGIC_NUMBER;
         match complex {
-            ComplexResourceType::Diamond =>   ResourceVector([2,0,0,0,n,0,0,0,0,0]),
-            ComplexResourceType::Water =>     ResourceVector([0,1,1,0,0,n,0,0,0,0]),
-            ComplexResourceType::Life =>      ResourceVector([1,1,1,0,0,1,n,0,0,0]),
-            ComplexResourceType::Robot =>     ResourceVector([1,1,1,1,0,1,1,n,0,0]),
-            ComplexResourceType::Dolphin =>   ResourceVector([1,1,1,0,0,1,1,0,n,0]),
-            ComplexResourceType::AIPartner => ResourceVector([2,1,1,1,0,1,1,1,0,n]),
+            ComplexResourceType::Diamond => ResourceVector([2, 0, 0, 0, n, 0, 0, 0, 0, 0]),
+            ComplexResourceType::Water => ResourceVector([0, 1, 1, 0, 0, n, 0, 0, 0, 0]),
+            ComplexResourceType::Life => ResourceVector([1, 1, 1, 0, 0, 1, n, 0, 0, 0]),
+            ComplexResourceType::Robot => ResourceVector([1, 1, 1, 1, 0, 1, 1, n, 0, 0]),
+            ComplexResourceType::Dolphin => ResourceVector([1, 1, 1, 0, 0, 1, 1, 0, n, 0]),
+            ComplexResourceType::AIPartner => ResourceVector([2, 1, 1, 1, 0, 1, 1, 1, 0, n]),
         }
     }
 

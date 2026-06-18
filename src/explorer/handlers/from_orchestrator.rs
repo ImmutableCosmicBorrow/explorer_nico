@@ -103,7 +103,6 @@ impl Explorer {
             }
             OrchestratorToExplorer::CombineResourceRequest { to_generate } => {
                 if self.manual_mode {
-
                     if to_generate.is_aipartner() {
                         self.brain.reset_needs();
                     } else {
