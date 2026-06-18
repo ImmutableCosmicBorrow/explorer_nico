@@ -1,5 +1,6 @@
 use common_game::components::resource::{BasicResourceType, ComplexResourceType, ResourceType};
 
+pub(crate) const SOFTMAX_TEMPERATURE : f64 = 10.0;
 pub(crate) const BASIC_RESOURCE_WEIGHT: u64 = 10;
 pub(crate) const COMPLEX_RESOURCE_WEIGHT: u64 = 15;
 

@@ -15,7 +15,7 @@ use common_game::{
 };
 use crate::brain::intention::Intention;
 use crate::brain::math::Vec10;
-use crate::config::{INITIAL_NEEDS, LAST_SUCCESS_TIMEOUT_MULTIPLIER};
+use crate::config::{INITIAL_NEEDS, LAST_SUCCESS_TIMEOUT_MULTIPLIER, SOFTMAX_TEMPERATURE};
 use crate::galaxy::galaxy_map::GalaxyMap;
 use crate::galaxy::resources::build_bag_vector;
 use crate::galaxy::resources::{build_crafting_vector, resource_value};
@@ -167,25 +167,35 @@ impl Brain {
 
         let capabilities: Vec<(ID, Vec10)> = neighbors
             .iter()
-            .map(|&id| (id, self.galaxy_map.planet_capabilities(id)))
+            .map(|id| (*id, self.galaxy_map.planet_capabilities(*id)))
             .collect();
 
         if let Some(&(id, _)) = capabilities.iter().find(|(_, cap)| cap.is_zero()) {
             return Intention::Move(Some(id));
         }
 
-        let mut scores: Vec<(ID, u64)> = capabilities
+        #[allow(clippy::cast_precision_loss)]
+        let scores: Vec<(ID, f64)> = capabilities
             .iter()
-            .map(|&(id, cap)| (id, cap.dot(&self.needs)))
+            .map(|(id, cap)| (*id, cap.dot(&self.needs) as f64))
             .collect();
 
-        scores.sort_by_key(|&(_, score)| std::cmp::Reverse(score));
+        // Softmax, avoiding Planets with score of 0
+        let max = scores.iter().map(|(_, s)| s).copied().fold(f64::NEG_INFINITY, f64::max);
+        let exps: Vec<f64> = scores.iter().map(|(_, s)| {
+             ((s - max) / SOFTMAX_TEMPERATURE).exp()
+        }).collect();
+        let sum: f64 = exps.iter().sum();
+        let probs: Vec<f64> = exps.iter().map(|e| e / sum).collect();
 
-        let id = if scores.len() >= 2 && rand::random::<f32>() < 0.3 {
-            scores[1].0
-        } else {
-            scores[0].0
-        };
+        // Sample an ID using the softmax distribution
+        let mut r = rand::random::<f64>();
+        let id = scores.iter().zip(probs.iter())
+            .find(|(_, p)| { r -= **p; r <= 0.0 })
+            .map_or(scores[0].0, |((id, _), _)| *id);
+
+        eprintln!("scores: {scores:?}");
+        eprintln!("probs: {probs:?}");
 
         Intention::Move(Some(id))
     }
