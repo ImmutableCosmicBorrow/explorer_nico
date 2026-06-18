@@ -41,7 +41,7 @@ pub(crate) fn log_to_orchestrator(explorer_id: ID, p: Payload) {
         Channel::Trace,
         p,
     )
-        .emit();
+    .emit();
 }
 
 pub(crate) fn log_to_planet(explorer_id: ID, planet_id: ID, p: Payload) {
@@ -52,5 +52,5 @@ pub(crate) fn log_to_planet(explorer_id: ID, planet_id: ID, p: Payload) {
         Channel::Trace,
         p,
     )
-        .emit();
+    .emit();
 }

@@ -18,7 +18,7 @@ impl Explorer {
                 action : "Nico sending to the Orchestrator",
                 explorer_id : self.id,
                 msg : format!("{msg:?}")
-            )
+            ),
         );
         let res = self
             .orchestrator_sender
@@ -47,7 +47,7 @@ impl Explorer {
                     explorer_id : self.id,
                     planet : format!("{:?}", self.planet_stats.id()),
                     msg : format!("{msg:?}")
-                )
+                ),
             );
             sender.send(msg).map_err(|err| err.to_string())
         } else {
