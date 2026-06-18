@@ -17,6 +17,8 @@ pub(crate) const INITIAL_NEEDS: [u64; 10] = [
     10, // AI Partner
 ];
 
+pub(crate) const NEEDS_MAGIC_NUMBER: u64 = 7;
+
 pub(crate) const LAST_SUCCESS_TIMEOUT_MULTIPLIER: u32 = 6;
 
 /// All resources, ordered.

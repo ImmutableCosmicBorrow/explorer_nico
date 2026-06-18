@@ -3,7 +3,7 @@ use std::{collections::HashSet, ops::Mul};
 use common_game::components::resource::{
     BasicResourceType, ComplexResourceRequest, ComplexResourceType, GenericResource, ResourceType,
 };
-
+use crate::config::NEEDS_MAGIC_NUMBER;
 use crate::galaxy::resources::resource_index;
 
 #[derive(Clone, Copy, Debug)]
@@ -35,13 +35,19 @@ impl ResourceVector {
         ResourceVector([0; 10])
     }
 
-    /// Creates a new `ResourceVector` initialized with four ones and six zeros.
+    /// Creates a new `ResourceVector` initialized with the specific needs for a `ComplexResourceType`
     ///
     /// Returns the new `ResourceVector`
-    pub(crate) fn twos_carbon_ones_others() -> Self {
-        let mut vec = ResourceVector([1; 10]);
-        vec.0[0] = 2;
-        vec
+    pub(crate) fn generate_complex_needs(complex: ComplexResourceType) -> Self {
+        let n = NEEDS_MAGIC_NUMBER;
+        match complex {
+            ComplexResourceType::Diamond =>   ResourceVector([2,0,0,0,n,0,0,0,0,0]),
+            ComplexResourceType::Water =>     ResourceVector([0,1,1,0,0,n,0,0,0,0]),
+            ComplexResourceType::Life =>      ResourceVector([1,1,1,0,0,1,n,0,0,0]),
+            ComplexResourceType::Robot =>     ResourceVector([1,1,1,1,0,1,1,n,0,0]),
+            ComplexResourceType::Dolphin =>   ResourceVector([1,1,1,0,0,1,1,0,n,0]),
+            ComplexResourceType::AIPartner => ResourceVector([2,1,1,1,0,1,1,1,0,n]),
+        }
     }
 
     /// Generates a `ResourceVector` with a high value for the given `ResourceType`.
@@ -49,12 +55,12 @@ impl ResourceVector {
         match resource {
             ResourceType::Basic(res) => {
                 let mut vec = ResourceVector::zeros();
-                vec.0[resource_index(ResourceType::Basic(res))] = 7;
+                vec.0[resource_index(ResourceType::Basic(res))] = NEEDS_MAGIC_NUMBER;
                 vec
             }
             ResourceType::Complex(res) => {
-                let mut vec = ResourceVector::twos_carbon_ones_others();
-                vec.0[resource_index(ResourceType::Complex(res))] = 7;
+                let mut vec = ResourceVector::generate_complex_needs(res);
+                vec.0[resource_index(ResourceType::Complex(res))] = NEEDS_MAGIC_NUMBER;
                 vec
             }
         }
@@ -151,7 +157,7 @@ impl ResourceVector {
             GenericResource::ComplexResources(complex) => {
                 if complex.get_type() != ComplexResourceType::AIPartner {
                     let idx = resource_index(ResourceType::Complex(complex.get_type()));
-                    if self.0[idx] != 7 {
+                    if self.0[idx] != NEEDS_MAGIC_NUMBER {
                         self.0[idx] = self.0[idx].saturating_sub(1);
                     }
                 }
