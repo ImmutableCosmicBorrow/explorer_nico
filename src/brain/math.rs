@@ -151,7 +151,9 @@ impl ResourceVector {
         match resource {
             GenericResource::BasicResources(basic) => {
                 let idx = resource_index(ResourceType::Basic(basic.get_type()));
-                self.0[idx] = self.0[idx].saturating_sub(1);
+                if self.0[idx] != NEEDS_MAGIC_NUMBER {
+                    self.0[idx] = self.0[idx].saturating_sub(1);
+                }
             }
 
             GenericResource::ComplexResources(complex) => {
