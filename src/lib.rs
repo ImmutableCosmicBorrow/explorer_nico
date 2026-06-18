@@ -1,7 +1,7 @@
 pub(crate) mod brain;
-pub mod explorer;
-mod logging;
 mod config;
+pub mod explorer;
 mod galaxy;
+mod logging;
 
 pub use explorer::Explorer;

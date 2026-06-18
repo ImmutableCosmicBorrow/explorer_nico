@@ -1,17 +1,19 @@
-use std::time::{Duration, Instant};
-use common_explorer::{ExplorerAI, ExplorerBagContent};
-use common_game::protocols::orchestrator_explorer::{ExplorerToOrchestrator, OrchestratorToExplorer};
-use common_game::protocols::planet_explorer::PlanetToExplorer;
-use common_game::utils::ID;
-use crossbeam_channel::{select, Receiver, Sender};
 use crate::brain::Brain;
+use crate::galaxy::planet_stats::PlanetStats;
 use crate::logging::{log_debug, log_trace};
 use crate::payload;
-use crate::galaxy::planet_stats::PlanetStats;
+use common_explorer::{ExplorerAI, ExplorerBagContent};
+use common_game::protocols::orchestrator_explorer::{
+    ExplorerToOrchestrator, OrchestratorToExplorer,
+};
+use common_game::protocols::planet_explorer::PlanetToExplorer;
+use common_game::utils::ID;
+use crossbeam_channel::{Receiver, Sender, select};
+use std::time::{Duration, Instant};
 
-mod lifecycle;
-pub(crate) mod handlers;
 mod communication;
+pub(crate) mod handlers;
+mod lifecycle;
 
 pub struct Explorer {
     id: ID,

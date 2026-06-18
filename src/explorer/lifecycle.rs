@@ -1,8 +1,8 @@
-use common_game::protocols::orchestrator_explorer::ExplorerToOrchestrator;
-use common_game::protocols::planet_explorer::ExplorerToPlanet;
-use crate::{payload, Explorer};
 use crate::brain::intention::Intention;
 use crate::logging::{log_debug, log_info};
+use crate::{Explorer, payload};
+use common_game::protocols::orchestrator_explorer::ExplorerToOrchestrator;
+use common_game::protocols::planet_explorer::ExplorerToPlanet;
 
 impl Explorer {
     /// Thinks of the next intention and executes it.
@@ -77,6 +77,7 @@ impl Explorer {
         // TODO: actually reset AI
         self.manual_mode = true;
         self.path.clear();
+        self.brain.reset_needs();
         self.to_orchestrator(ExplorerToOrchestrator::ResetExplorerAIResult {
             explorer_id: self.id,
         })?;

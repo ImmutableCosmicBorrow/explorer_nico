@@ -1,6 +1,8 @@
 use std::{collections::HashSet, ops::Mul};
 
-use common_game::components::resource::{BasicResourceType, ComplexResourceRequest, ComplexResourceType, GenericResource, ResourceType};
+use common_game::components::resource::{
+    BasicResourceType, ComplexResourceRequest, ComplexResourceType, GenericResource, ResourceType,
+};
 
 use crate::galaxy::resources::resource_index;
 
@@ -33,6 +35,31 @@ impl ResourceVector {
         ResourceVector([0; 10])
     }
 
+    /// Creates a new `ResourceVector` initialized with four ones and six zeros.
+    ///
+    /// Returns the new `ResourceVector`
+    pub(crate) fn twos_carbon_ones_others() -> Self {
+        let mut vec = ResourceVector([1; 10]);
+        vec.0[0] = 2;
+        vec
+    }
+
+    /// Generates a `ResourceVector` with a high value for the given `ResourceType`.
+    pub(crate) fn generate_resource_needs(resource: ResourceType) -> Self {
+        match resource {
+            ResourceType::Basic(res) => {
+                let mut vec = ResourceVector::zeros();
+                vec.0[resource_index(ResourceType::Basic(res))] = 7;
+                vec
+            }
+            ResourceType::Complex(res) => {
+                let mut vec = ResourceVector::twos_carbon_ones_others();
+                vec.0[resource_index(ResourceType::Complex(res))] = 7;
+                vec
+            }
+        }
+    }
+
     /// Gets the internal array of a `ResourceVector`.
     ///
     /// Returns a `[u64; 10]`
@@ -61,15 +88,27 @@ impl ResourceVector {
         #[allow(clippy::cast_precision_loss)]
         let scores: Vec<f64> = self.0.iter().map(|&x| x as f64).collect();
         let max = scores.iter().copied().fold(f64::NEG_INFINITY, f64::max);
-        let exps: Vec<f64> = scores.iter().map(|s| {
-            if *s <= 0.0 { 0.0 } else { ((s - max) / temperature).exp() }
-        }).collect();
+        let exps: Vec<f64> = scores
+            .iter()
+            .map(|s| {
+                if *s <= 0.0 {
+                    0.0
+                } else {
+                    ((s - max) / temperature).exp()
+                }
+            })
+            .collect();
         let sum: f64 = exps.iter().sum();
         let probs: Vec<f64> = exps.iter().map(|e| e / sum).collect();
 
         let mut r = rand::random::<f64>();
-        probs.iter().enumerate()
-            .find(|(_, p)| { r -= *p; r <= 0.0 })
+        probs
+            .iter()
+            .enumerate()
+            .find(|(_, p)| {
+                r -= *p;
+                r <= 0.0
+            })
             .map_or(0, |(i, _)| i)
     }
 
@@ -112,7 +151,9 @@ impl ResourceVector {
             GenericResource::ComplexResources(complex) => {
                 if complex.get_type() != ComplexResourceType::AIPartner {
                     let idx = resource_index(ResourceType::Complex(complex.get_type()));
-                    self.0[idx] = self.0[idx].saturating_sub(1);
+                    if self.0[idx] != 7 {
+                        self.0[idx] = self.0[idx].saturating_sub(1);
+                    }
                 }
             }
         }

@@ -1,8 +1,11 @@
-use common_game::protocols::orchestrator_explorer::{ExplorerToOrchestrator, OrchestratorToExplorer};
+use crate::Explorer;
+use common_game::components::resource::ResourceType;
+use common_game::protocols::orchestrator_explorer::{
+    ExplorerToOrchestrator, OrchestratorToExplorer,
+};
 use common_game::protocols::planet_explorer::ExplorerToPlanet;
 use common_game::utils::ID;
 use crossbeam_channel::Sender;
-use crate::Explorer;
 
 impl Explorer {
     /// Tries to move to a new Planet. This succeeds if `new_sender` is `Some`.
@@ -45,7 +48,10 @@ impl Explorer {
                 current_planet_id: planet_id,
             })?;
         } else {
-            self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest { explorer_id: self.id, current_planet_id: self.planet_stats.id().expect("Nico is not in a Planet") })?;
+            self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
+                explorer_id: self.id,
+                current_planet_id: self.planet_stats.id().expect("Nico is not in a Planet"),
+            })?;
         }
 
         Ok(false)
@@ -86,6 +92,8 @@ impl Explorer {
             }
             OrchestratorToExplorer::GenerateResourceRequest { to_generate } => {
                 if self.manual_mode {
+                    self.brain.set_needs(ResourceType::Basic(to_generate));
+
                     self.to_planet(ExplorerToPlanet::GenerateResourceRequest {
                         explorer_id: self.id,
                         resource: to_generate,
@@ -95,6 +103,8 @@ impl Explorer {
             }
             OrchestratorToExplorer::CombineResourceRequest { to_generate } => {
                 if self.manual_mode {
+                    self.brain.set_needs(ResourceType::Complex(to_generate));
+
                     if let Some(request) = self.brain.try_combination_request(to_generate) {
                         self.to_planet(ExplorerToPlanet::CombineResourceRequest {
                             explorer_id: self.id,

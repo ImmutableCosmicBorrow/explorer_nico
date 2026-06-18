@@ -1,8 +1,8 @@
+use crate::logging::log_debug;
+use crate::{Explorer, payload};
 use common_game::components::resource::GenericResource;
 use common_game::protocols::orchestrator_explorer::ExplorerToOrchestrator;
 use common_game::protocols::planet_explorer::PlanetToExplorer;
-use crate::{payload, Explorer};
-use crate::logging::log_debug;
 
 impl Explorer {
     /// Handles the received Planet message.
@@ -21,9 +21,10 @@ impl Explorer {
                         supported_resources: resource_list.clone(),
                     })?;
                 }
-                self.brain
-                    .set_planet_basic_resources(self.planet_stats.id().unwrap_or(0), &resource_list);
-
+                self.brain.set_planet_basic_resources(
+                    self.planet_stats.id().unwrap_or(0),
+                    &resource_list,
+                );
             }
             PlanetToExplorer::SupportedCombinationResponse { combination_list } => {
                 // Send to Orchestrator only if it is in manual mode

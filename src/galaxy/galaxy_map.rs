@@ -1,9 +1,9 @@
-use std::collections::{HashMap, HashSet};
 use crate::brain::math::ResourceVector;
 use common_game::{
     components::resource::{BasicResourceType, ComplexResourceType},
     utils::ID,
 };
+use std::collections::{HashMap, HashSet};
 
 pub struct PlanetInfo {
     capabilities: ResourceVector,

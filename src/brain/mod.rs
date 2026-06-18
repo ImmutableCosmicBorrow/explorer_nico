@@ -6,23 +6,20 @@ use std::{
     time::{Duration, Instant},
 };
 
-use common_explorer::{ExplorerBag, ExplorerBagContent};
-use common_game::{
-    components::resource::{
-        BasicResourceType, ComplexResourceRequest, ComplexResourceType, GenericResource,
-    },
-    utils::ID,
-};
 use crate::brain::intention::Intention;
 use crate::brain::math::ResourceVector;
 use crate::config::{INITIAL_NEEDS, LAST_SUCCESS_TIMEOUT_MULTIPLIER, SOFTMAX_TEMPERATURE};
 use crate::galaxy::galaxy_map::GalaxyMap;
 use crate::galaxy::resources::build_bag_vector;
 use crate::galaxy::resources::{build_crafting_vector, resource_value};
-
-
-
-
+use common_explorer::{ExplorerBag, ExplorerBagContent};
+use common_game::components::resource::ResourceType;
+use common_game::{
+    components::resource::{
+        BasicResourceType, ComplexResourceRequest, ComplexResourceType, GenericResource,
+    },
+    utils::ID,
+};
 
 pub struct Brain {
     bag: ExplorerBag,
@@ -54,6 +51,16 @@ impl Brain {
     /// Returns the performance score
     pub(crate) fn performance(&self) -> u64 {
         self.performance
+    }
+
+    /// Sets the needs `ResourceVector` to reflect the given `ResourceType`
+    pub(crate) fn set_needs(&mut self, res: ResourceType) {
+        self.needs = ResourceVector::generate_resource_needs(res);
+    }
+
+    /// Resets the needs `ResourceVector` to the default one.
+    pub(crate) fn reset_needs(&mut self) {
+        self.needs = ResourceVector::new(INITIAL_NEEDS);
     }
 
     /// Inserts a resource into the bag and updates the performance score and the needs
@@ -186,20 +193,28 @@ impl Brain {
             .collect();
 
         // Softmax, avoiding Planets with score of 0
-        let max = scores.iter().map(|(_, s)| s).copied().fold(f64::NEG_INFINITY, f64::max);
-        let exps: Vec<f64> = scores.iter().map(|(_, s)| {
-             ((s - max) / SOFTMAX_TEMPERATURE).exp()
-        }).collect();
+        let max = scores
+            .iter()
+            .map(|(_, s)| s)
+            .copied()
+            .fold(f64::NEG_INFINITY, f64::max);
+        let exps: Vec<f64> = scores
+            .iter()
+            .map(|(_, s)| ((s - max) / SOFTMAX_TEMPERATURE).exp())
+            .collect();
         let sum: f64 = exps.iter().sum();
         let probs: Vec<f64> = exps.iter().map(|e| e / sum).collect();
 
         // Sample an ID using the softmax distribution
         let mut r = rand::random::<f64>();
-        let id = scores.iter().zip(probs.iter())
-            .find(|(_, p)| { r -= **p; r <= 0.0 })
+        let id = scores
+            .iter()
+            .zip(probs.iter())
+            .find(|(_, p)| {
+                r -= **p;
+                r <= 0.0
+            })
             .map_or(scores[0].0, |((id, _), _)| *id);
-
-
 
         Intention::Move(Some(id))
     }

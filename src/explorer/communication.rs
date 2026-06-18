@@ -1,12 +1,12 @@
+use crate::logging::{log_debug, log_error, log_trace, log_warning};
+use crate::{Explorer, payload};
 use common_explorer::ExplorerBagContent;
 use common_game::protocols::orchestrator_explorer::ExplorerToOrchestrator;
 use common_game::protocols::planet_explorer::ExplorerToPlanet;
-use crate::{payload, Explorer};
-use crate::logging::{log_debug, log_error, log_trace, log_warning};
 
 impl Explorer {
     /// Sends a `ExplorerToOrchestrator` message to the Orchestrator.
-    /// 
+    ///
     /// Returns an error if the send fails.
     pub(crate) fn to_orchestrator(
         &self,
@@ -30,9 +30,9 @@ impl Explorer {
         }
         res
     }
-    
+
     /// Sends a `ExplorerToPlanet` message to the current Planet.
-    /// 
+    ///
     /// Returns an error if the send fails, or if Nico does not have a Planet sender.
     pub(crate) fn to_planet(&self, msg: ExplorerToPlanet) -> Result<(), String> {
         if let Some(ref sender) = self.planet_stats.sender() {

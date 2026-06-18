@@ -1,9 +1,7 @@
-use common_explorer::ExplorerBag;
-use common_game::components::resource::{BasicResourceType, ComplexResourceType, ResourceType};
 use crate::brain::math::ResourceVector;
 use crate::config::{BASIC_RESOURCE_WEIGHT, COMPLEX_RESOURCE_WEIGHT, RESOURCES};
-
-
+use common_explorer::ExplorerBag;
+use common_game::components::resource::{BasicResourceType, ComplexResourceType, ResourceType};
 
 /// Index for each resource type
 pub fn resource_index(resource: ResourceType) -> usize {
@@ -16,9 +14,21 @@ pub fn resource_index(resource: ResourceType) -> usize {
 /// Value for each resource
 pub fn resource_value(resource: ResourceType) -> u64 {
     match resource {
-        ResourceType::Basic(BasicResourceType::Carbon | BasicResourceType::Hydrogen | BasicResourceType::Oxygen | BasicResourceType::Silicon) => BASIC_RESOURCE_WEIGHT,
-        ResourceType::Complex(ComplexResourceType::Diamond | ComplexResourceType::Water | ComplexResourceType::Life | ComplexResourceType::Robot) => COMPLEX_RESOURCE_WEIGHT,
-        ResourceType::Complex(ComplexResourceType::Dolphin | ComplexResourceType::AIPartner) => COMPLEX_RESOURCE_WEIGHT * 2,
+        ResourceType::Basic(
+            BasicResourceType::Carbon
+            | BasicResourceType::Hydrogen
+            | BasicResourceType::Oxygen
+            | BasicResourceType::Silicon,
+        ) => BASIC_RESOURCE_WEIGHT,
+        ResourceType::Complex(
+            ComplexResourceType::Diamond
+            | ComplexResourceType::Water
+            | ComplexResourceType::Life
+            | ComplexResourceType::Robot,
+        ) => COMPLEX_RESOURCE_WEIGHT,
+        ResourceType::Complex(ComplexResourceType::Dolphin | ComplexResourceType::AIPartner) => {
+            COMPLEX_RESOURCE_WEIGHT * 2
+        }
     }
 }
 
