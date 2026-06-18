@@ -5,9 +5,9 @@ use common_game::protocols::planet_explorer::PlanetToExplorer;
 use common_game::utils::ID;
 use crossbeam_channel::{select, Receiver, Sender};
 use crate::brain::Brain;
-use crate::logging_utils::{log_debug, log_trace};
+use crate::logging::{log_debug, log_trace};
 use crate::payload;
-use crate::planet_stats::PlanetStats;
+use crate::galaxy::planet_stats::PlanetStats;
 
 mod lifecycle;
 pub(crate) mod handlers;

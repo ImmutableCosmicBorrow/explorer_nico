@@ -1,7 +1,7 @@
 use common_explorer::ExplorerBag;
 use common_game::components::resource::{BasicResourceType, ComplexResourceType, ResourceType};
+use crate::brain::math::Vec10;
 use crate::config::{BASIC_RESOURCE_WEIGHT, COMPLEX_RESOURCE_WEIGHT, RESOURCES};
-use crate::vector::Vec10;
 
 
 

@@ -1,11 +1,9 @@
 use std::collections::{HashMap, HashSet};
-
+use crate::brain::math::Vec10;
 use common_game::{
     components::resource::{BasicResourceType, ComplexResourceType},
     utils::ID,
 };
-
-use crate::{vector::Vec10};
 
 pub struct PlanetInfo {
     capabilities: Vec10,

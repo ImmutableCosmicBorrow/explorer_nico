@@ -1,9 +1,11 @@
+pub(crate) mod intention;
+pub(crate) mod math;
+
 use std::{
     collections::HashSet,
     time::{Duration, Instant},
 };
 
-use crate::{galaxy_map::GalaxyMap, resources::{build_bag_vector}, vector::Vec10};
 use common_explorer::{ExplorerBag, ExplorerBagContent};
 use common_game::{
     components::resource::{
@@ -11,15 +13,14 @@ use common_game::{
     },
     utils::ID,
 };
+use crate::brain::intention::Intention;
+use crate::brain::math::Vec10;
 use crate::config::{INITIAL_NEEDS, LAST_SUCCESS_TIMEOUT_MULTIPLIER};
-use crate::resources::{build_crafting_vector, resource_value};
+use crate::galaxy::galaxy_map::GalaxyMap;
+use crate::galaxy::resources::build_bag_vector;
+use crate::galaxy::resources::{build_crafting_vector, resource_value};
 
-#[derive(Debug)]
-pub(crate) enum Intention {
-    Generate(Option<BasicResourceType>),
-    Combine(Option<ComplexResourceRequest>),
-    Move(Option<ID>),
-}
+
 
 
 

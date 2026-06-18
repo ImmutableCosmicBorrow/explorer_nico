@@ -1,10 +1,7 @@
-mod brain;
+pub(crate) mod brain;
 pub mod explorer;
-mod galaxy_map;
-mod logging_utils;
-mod planet_stats;
-mod resources;
-mod vector;
+mod logging;
 mod config;
+mod galaxy;
 
 pub use explorer::Explorer;

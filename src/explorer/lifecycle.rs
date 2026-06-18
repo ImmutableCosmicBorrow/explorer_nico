@@ -1,8 +1,8 @@
 use common_game::protocols::orchestrator_explorer::ExplorerToOrchestrator;
 use common_game::protocols::planet_explorer::ExplorerToPlanet;
 use crate::{payload, Explorer};
-use crate::brain::Intention;
-use crate::logging_utils::{log_debug, log_info};
+use crate::brain::intention::Intention;
+use crate::logging::{log_debug, log_info};
 
 impl Explorer {
     pub(crate) fn execute_intention(&mut self) -> Result<(), String> {

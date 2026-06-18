@@ -2,7 +2,7 @@ use common_explorer::ExplorerBagContent;
 use common_game::protocols::orchestrator_explorer::ExplorerToOrchestrator;
 use common_game::protocols::planet_explorer::ExplorerToPlanet;
 use crate::{payload, Explorer};
-use crate::logging_utils::{log_debug, log_error, log_trace, log_warning};
+use crate::logging::{log_debug, log_error, log_trace, log_warning};
 
 impl Explorer {
     pub(crate) fn to_orchestrator(

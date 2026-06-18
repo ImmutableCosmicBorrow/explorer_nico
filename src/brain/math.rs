@@ -2,7 +2,7 @@ use std::{collections::HashSet, ops::Mul};
 
 use common_game::components::resource::{BasicResourceType, ComplexResourceRequest, ComplexResourceType, GenericResource, ResourceType};
 
-use crate::resources::resource_index;
+use crate::galaxy::resources::resource_index;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Vec10([u64; 10]);

@@ -2,7 +2,7 @@ use common_game::components::resource::GenericResource;
 use common_game::protocols::orchestrator_explorer::ExplorerToOrchestrator;
 use common_game::protocols::planet_explorer::PlanetToExplorer;
 use crate::{payload, Explorer};
-use crate::logging_utils::log_debug;
+use crate::logging::log_debug;
 
 impl Explorer {
     pub(crate) fn handle_planet_message(
