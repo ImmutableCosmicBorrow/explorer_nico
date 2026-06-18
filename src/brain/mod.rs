@@ -194,10 +194,14 @@ impl Brain {
             return Intention::Move(Some(id));
         }
 
+        let bag_vector = build_bag_vector(&self.bag);
+        let crafting_vector = build_crafting_vector(&bag_vector);
+        let weighted_needs = self.needs * crafting_vector;
+
         #[allow(clippy::cast_precision_loss)]
         let scores: Vec<(ID, f64)> = capabilities
             .iter()
-            .map(|(id, cap)| (*id, cap.dot(&self.needs) as f64))
+            .map(|(id, cap)| (*id, cap.dot(&weighted_needs) as f64))
             .collect();
 
         // Softmax, avoiding Planets with score of 0
