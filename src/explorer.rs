@@ -22,8 +22,6 @@ pub struct Explorer {
     game_step: Duration,
     manual_mode: bool,
     path: Vec<ID>,
-    pending_resource_request: bool,
-    pending_combination_request: bool,
 }
 
 impl Explorer {
@@ -47,8 +45,6 @@ impl Explorer {
             game_step,
             manual_mode: true,
             path: Vec::new(),
-            pending_resource_request: false,
-            pending_combination_request: false,
         }
     }
     pub(crate) fn to_orchestrator(
@@ -107,21 +103,17 @@ impl Explorer {
 
             // Reset the Planet stats and update id and sender.
             self.planet_stats.update_planet(planet_id, sender);
-            
-            // Reset pending flags since we're moving to a new planet
-            self.pending_resource_request = false;
-            self.pending_combination_request = false;
 
-            // Ask Planet for its supported resources and combinations
-            self.pending_resource_request = true;
-            self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
-                explorer_id: self.id,
-            })?;
+            if !self.manual_mode {
+                // Ask Planet for its supported resources and combinations
+                self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
+                    explorer_id: self.id,
+                })?;
 
-            self.pending_combination_request = true;
-            self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
-                explorer_id: self.id,
-            })?;
+                self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
+                    explorer_id: self.id,
+                })?;
+            }
 
             // Ask Orchestrator for neighbors of the current Planet
             self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
@@ -139,9 +131,6 @@ impl Explorer {
     ) -> Result<(), String> {
         match message {
             PlanetToExplorer::SupportedResourceResponse { resource_list } => {
-                // Clear the pending flag
-                self.pending_resource_request = false;
-                
                 // Send to Orchestrator only if it is in manual mode
                 if self.manual_mode {
                     self.to_orchestrator(ExplorerToOrchestrator::SupportedResourceResult {
@@ -155,9 +144,6 @@ impl Explorer {
 
             }
             PlanetToExplorer::SupportedCombinationResponse { combination_list } => {
-                // Clear the pending flag
-                self.pending_combination_request = false;
-                
                 // Send to Orchestrator only if it is in manual mode
                 if self.manual_mode {
                     self.to_orchestrator(ExplorerToOrchestrator::SupportedCombinationResult {
@@ -206,19 +192,19 @@ impl Explorer {
                             .insert_resource(GenericResource::ComplexResources(r));
                         Ok(())
                     }
-                    Err((_error, r1, r2)) => {
+                    Err((error, r1, r2)) => {
                         self.brain.reinsert_resource(r1);
                         self.brain.reinsert_resource(r2);
                         //self.brain.on_no_action();
                         log_debug(
                             payload!(action : "Planet did not combine complex resource for Nico", explorer_id : self.id),
                         );
-                        Ok(())
+                        Err(error)
                     }
                 };
                 // Send to Orchestrator only if it is in manual mode
                 if self.manual_mode {
-                    self.to_orchestrator(ExplorerToOrchestrator::GenerateResourceResponse {
+                    self.to_orchestrator(ExplorerToOrchestrator::CombineResourceResponse {
                         explorer_id: self.id,
                         generated,
                     })?;
@@ -233,7 +219,7 @@ impl Explorer {
     pub(crate) fn handle_orchestrator_message(
         &mut self,
         message: OrchestratorToExplorer,
-    ) -> Result<bool, String> {
+    ) -> Result<bool, String> { // TODO: non uso mai Ok(true)? forse dopo il .kill() credo
         match message {
             OrchestratorToExplorer::StartExplorerAI => self.start(),
             OrchestratorToExplorer::ResetExplorerAI => self.reset(),
@@ -260,23 +246,27 @@ impl Explorer {
                 self.handle_supported_combination_request()
             }
             OrchestratorToExplorer::GenerateResourceRequest { to_generate } => {
-                self.to_planet(ExplorerToPlanet::GenerateResourceRequest {
-                    explorer_id: self.id,
-                    resource: to_generate,
-                })?;
+                if self.manual_mode {
+                    self.to_planet(ExplorerToPlanet::GenerateResourceRequest {
+                        explorer_id: self.id,
+                        resource: to_generate,
+                    })?;
+                }
                 Ok(false)
             }
             OrchestratorToExplorer::CombineResourceRequest { to_generate } => {
-                if let Some(request) = self.brain.try_combination_request(to_generate) {
-                    self.to_planet(ExplorerToPlanet::CombineResourceRequest {
-                        explorer_id: self.id,
-                        msg: request,
-                    })?;
-                } else if self.manual_mode {
-                    self.to_orchestrator(ExplorerToOrchestrator::CombineResourceResponse {
-                        explorer_id: self.id,
-                        generated: Err("Explorer did not have ingredients".into()),
-                    })?;
+                if self.manual_mode {
+                    if let Some(request) = self.brain.try_combination_request(to_generate) {
+                        self.to_planet(ExplorerToPlanet::CombineResourceRequest {
+                            explorer_id: self.id,
+                            msg: request,
+                        })?;
+                    } else {
+                        self.to_orchestrator(ExplorerToOrchestrator::CombineResourceResponse {
+                            explorer_id: self.id,
+                            generated: Err("Explorer did not have ingredients".into()),
+                        })?;
+                    }
                 }
                 Ok(false)
             }
@@ -303,28 +293,20 @@ impl Explorer {
     }
 
     fn handle_supported_resources_request(&mut self) -> Result<bool, String> {
-        if !self.pending_resource_request {
-            // Only request from planet if we're not already waiting for a response
-            self.pending_resource_request = true;
+        if self.manual_mode {
             self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
                 explorer_id: self.id,
             })?;
         }
-        // If pending_resource_request is true, we're already waiting for a response,
-        // so we don't send another request. The response will trigger the result.
         Ok(false)
     }
 
     fn handle_supported_combination_request(&mut self) -> Result<bool, String> {
-        if !self.pending_combination_request {
-            // Only request from planet if we're not already waiting for a response
-            self.pending_combination_request = true;
+        if self.manual_mode {
             self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
                 explorer_id: self.id,
             })?;
         }
-        // If pending_combination_request is true, we're already waiting for a response,
-        // so we don't send another request. The response will trigger the result.
         Ok(false)
     }
 
@@ -392,8 +374,7 @@ impl Explorer {
     fn reset(&mut self) -> Result<bool, String> {
         // TODO: actually reset AI
         self.manual_mode = true;
-        self.pending_resource_request = false;
-        self.pending_combination_request = false;
+        self.path.clear();
         self.to_orchestrator(ExplorerToOrchestrator::ResetExplorerAIResult {
             explorer_id: self.id,
         })?;
@@ -423,6 +404,15 @@ impl Explorer {
         })?;
         log_info(payload!(action : "Nico ExplorerAI correctly started", explorer_id : self.id));
 
+        // Ask Planet for its supported resources and combinations
+        self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
+            explorer_id: self.id,
+        })?;
+
+        self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
+            explorer_id: self.id,
+        })?;
+
         Ok(false)
     }
 
@@ -433,8 +423,7 @@ impl Explorer {
             performance : self.brain.performance(),
             bag_content : format!("{:?}", self.brain.bag_content()),
         ));
-        self.pending_resource_request = false;
-        self.pending_combination_request = false;
+        self.path.clear();
         self.to_orchestrator(ExplorerToOrchestrator::KillExplorerResult {
             explorer_id: self.id,
         })?;
