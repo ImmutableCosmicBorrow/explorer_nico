@@ -84,7 +84,7 @@ impl ExplorerAI for Explorer {
                 }
                 recv(self.planet_receiver) -> msg => {
                     let msg = msg.expect("Error while receiving from Planet");
-                    log_debug(payload!(
+                    log_trace(payload!(
                         action : "Nico received from Planet",
                         explorer_id : self.id,
                         planet : format!("{:?}", self.planet_stats.id()),

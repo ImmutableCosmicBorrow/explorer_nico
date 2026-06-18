@@ -155,7 +155,9 @@ impl Explorer {
                 explorer_id: self.id,
             })?;
         } else {
-            let supported_resources = self.brain.supported_resources(self.planet_stats.id().expect("Explorer is not in a Planet"));
+            let supported_resources = self
+                .brain
+                .supported_resources(self.planet_stats.id().expect("Explorer is not in a Planet"));
             self.to_orchestrator(ExplorerToOrchestrator::SupportedResourceResult {
                 explorer_id: self.id,
                 supported_resources,
@@ -174,7 +176,9 @@ impl Explorer {
                 explorer_id: self.id,
             })?;
         } else {
-            let combination_list = self.brain.supported_combinations(self.planet_stats.id().expect("Explorer is not in a Planet"));
+            let combination_list = self.brain.supported_combinations(
+                self.planet_stats.id().expect("Explorer is not in a Planet"),
+            );
             self.to_orchestrator(ExplorerToOrchestrator::SupportedCombinationResult {
                 explorer_id: self.id,
                 combination_list,

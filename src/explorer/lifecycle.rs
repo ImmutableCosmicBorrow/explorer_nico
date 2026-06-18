@@ -1,5 +1,5 @@
 use crate::brain::intention::Intention;
-use crate::logging::{log_debug, log_info};
+use crate::logging::log_debug;
 use crate::{Explorer, payload};
 use common_game::protocols::orchestrator_explorer::ExplorerToOrchestrator;
 use common_game::protocols::planet_explorer::ExplorerToPlanet;
@@ -81,7 +81,7 @@ impl Explorer {
         self.to_orchestrator(ExplorerToOrchestrator::ResetExplorerAIResult {
             explorer_id: self.id,
         })?;
-        log_info(payload!(
+        log_debug(payload!(
             action : "Nico ExplorerAI correctly reset",
             explorer_id : self.id
         ));
@@ -97,7 +97,7 @@ impl Explorer {
         self.to_orchestrator(ExplorerToOrchestrator::StopExplorerAIResult {
             explorer_id: self.id,
         })?;
-        log_info(payload!(
+        log_debug(payload!(
             action : "Nico switched to manual mode",
             explorer_id : self.id,
         ));
@@ -113,7 +113,7 @@ impl Explorer {
         self.to_orchestrator(ExplorerToOrchestrator::StartExplorerAIResult {
             explorer_id: self.id,
         })?;
-        log_info(payload!(action : "Nico ExplorerAI correctly started", explorer_id : self.id));
+        log_debug(payload!(action : "Nico ExplorerAI correctly started", explorer_id : self.id));
 
         // Ask Planet for its supported resources and combinations
         self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
@@ -132,7 +132,7 @@ impl Explorer {
     /// Returns an error if any send of a message fails.
     /// Otherwise, returns `Ok(true)`, indicating that the Explorer has been killed.
     pub(crate) fn kill(&mut self) -> Result<bool, String> {
-        log_info(payload!(
+        log_debug(payload!(
             action : "Nico has been killed, bye bye :(",
             explorer_id : self.id,
             performance : self.brain.performance(),

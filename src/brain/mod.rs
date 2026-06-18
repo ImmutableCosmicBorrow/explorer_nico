@@ -53,11 +53,11 @@ impl Brain {
         self.performance
     }
 
-    pub(crate) fn supported_resources(&mut self, planet : ID) -> HashSet<BasicResourceType> {
+    pub(crate) fn supported_resources(&mut self, planet: ID) -> HashSet<BasicResourceType> {
         self.galaxy_map.planet_supported_resources(planet)
     }
 
-    pub(crate) fn supported_combinations(&mut self, planet : ID) -> HashSet<ComplexResourceType> {
+    pub(crate) fn supported_combinations(&mut self, planet: ID) -> HashSet<ComplexResourceType> {
         self.galaxy_map.planet_supported_combinations(planet)
     }
 

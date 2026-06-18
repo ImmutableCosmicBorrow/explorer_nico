@@ -33,10 +33,14 @@ impl PlanetInfo {
     pub(crate) fn neighbors(&self) -> &Vec<ID> {
         &self.neighbors
     }
-    
-    pub(crate) fn basic_resources(&self) -> HashSet<BasicResourceType> { self.basic_resources.clone() }
-    
-    pub(crate) fn complex_resources(&self) -> HashSet<ComplexResourceType> { self.complex_resources.clone() }
+
+    pub(crate) fn basic_resources(&self) -> HashSet<BasicResourceType> {
+        self.basic_resources.clone()
+    }
+
+    pub(crate) fn complex_resources(&self) -> HashSet<ComplexResourceType> {
+        self.complex_resources.clone()
+    }
 
     pub(crate) fn set_basic_resources(&mut self, resources: HashSet<BasicResourceType>) {
         self.capabilities.set_basic(&resources);
@@ -73,15 +77,21 @@ impl GalaxyMap {
             .or_insert(PlanetInfo::new())
             .neighbors()
     }
-    
-    pub(crate) fn planet_supported_resources(&mut self, planet_id: ID) -> HashSet<BasicResourceType> {
+
+    pub(crate) fn planet_supported_resources(
+        &mut self,
+        planet_id: ID,
+    ) -> HashSet<BasicResourceType> {
         self.planets
             .entry(planet_id)
             .or_insert(PlanetInfo::new())
             .basic_resources()
     }
 
-    pub(crate) fn planet_supported_combinations(&mut self, planet_id: ID) -> HashSet<ComplexResourceType> {
+    pub(crate) fn planet_supported_combinations(
+        &mut self,
+        planet_id: ID,
+    ) -> HashSet<ComplexResourceType> {
         self.planets
             .entry(planet_id)
             .or_insert(PlanetInfo::new())
