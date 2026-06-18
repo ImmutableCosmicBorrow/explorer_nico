@@ -1,8 +1,8 @@
 use std::{collections::HashSet, ops::Mul};
 
-use common_game::components::resource::{AIPartner, BasicResourceType, ComplexResource, ComplexResourceRequest, ComplexResourceType, GenericResource, ResourceType};
+use common_game::components::resource::{BasicResourceType, ComplexResourceRequest, ComplexResourceType, GenericResource, ResourceType};
 
-use crate::resources::{basic_resource_index, complex_resource_index, resource_index};
+use crate::resources::resource_index;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Vec10([u64; 10]);
@@ -41,8 +41,7 @@ impl Vec10 {
             .iter()
             .enumerate()
             .max_by_key(|&(_, value)| value)
-            .map(|(index, _)| index)
-            .unwrap_or(0)
+            .map_or(0, |(index, _)| index)
     }
 
     pub(crate) fn set_basic(&mut self, resources: &HashSet<BasicResourceType>) {
@@ -70,14 +69,14 @@ impl Vec10 {
     pub(crate) fn decrease_need(&mut self, resource: &GenericResource) {
         match resource {
             GenericResource::BasicResources(basic) => {
-                let n = self.0[basic_resource_index(basic.get_type())];
-                self.0[basic_resource_index(basic.get_type())] = n.saturating_sub(1);
+                let idx = resource_index(ResourceType::Basic(basic.get_type()));
+                self.0[idx] = self.0[idx].saturating_sub(1);
             }
 
             GenericResource::ComplexResources(complex) => {
                 if complex.get_type() != ComplexResourceType::AIPartner {
-                    let n = self.0[complex_resource_index(complex.get_type())];
-                    self.0[complex_resource_index(complex.get_type())] = n.saturating_sub(1);
+                    let idx = resource_index(ResourceType::Complex(complex.get_type()));
+                    self.0[idx] = self.0[idx].saturating_sub(1);
                 }
             }
         }

@@ -38,12 +38,6 @@ impl PlanetStats {
         self.combinations = None;
         self.neighbors = None;
     }
-    pub(crate) fn resources(&self) -> Option<&HashSet<BasicResourceType>> {
-        self.resources.as_ref()
-    }
-    pub(crate) fn combinations(&self) -> Option<&HashSet<ComplexResourceType>> {
-        self.combinations.as_ref()
-    }
     pub(crate) fn neighbors(&self) -> Option<&Vec<ID>> {
         self.neighbors.as_ref()
     }
@@ -53,20 +47,6 @@ impl PlanetStats {
     pub(crate) fn has_neighbors(&self) -> bool {
         if let Some(ref neighbors) = self.neighbors {
             !neighbors.is_empty()
-        } else {
-            false
-        }
-    }
-    pub(crate) fn has_resources(&self) -> bool {
-        if let Some(ref resources) = self.resources {
-            !resources.is_empty()
-        } else {
-            false
-        }
-    }
-    pub(crate) fn has_combinations(&self) -> bool {
-        if let Some(ref combinations) = self.combinations {
-            !combinations.is_empty()
         } else {
             false
         }

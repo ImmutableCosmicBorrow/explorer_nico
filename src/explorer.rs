@@ -99,7 +99,7 @@ impl Explorer {
             explorer_id: self.id,
             planet_id,
         })?;
-        self.brain.on_move(self.planet_stats.id().unwrap_or(0));
+        self.brain.on_move();
 
         // Move only if the sender is Some
         if let Some(sender) = new_sender {
@@ -149,9 +149,10 @@ impl Explorer {
                         supported_resources: resource_list.clone(),
                     })?;
                 }
-                self.planet_stats.update_resources(resource_list.clone());
                 self.brain
-                    .set_planet_basic_resources(self.planet_stats.id().unwrap_or(0), resource_list);
+                    .set_planet_basic_resources(self.planet_stats.id().unwrap_or(0), &resource_list);
+                self.planet_stats.update_resources(resource_list);
+
             }
             PlanetToExplorer::SupportedCombinationResponse { combination_list } => {
                 // Clear the pending flag
@@ -164,12 +165,12 @@ impl Explorer {
                         combination_list: combination_list.clone(),
                     })?;
                 }
-                self.planet_stats
-                    .update_combinations(combination_list.clone());
                 self.brain.set_planet_complex_resources(
                     self.planet_stats.id().unwrap_or(0),
-                    combination_list,
+                    &combination_list,
                 );
+                self.planet_stats
+                    .update_combinations(combination_list);
             }
             PlanetToExplorer::GenerateResourceResponse { resource } => {
                 let generated = if let Some(r) = resource {
@@ -302,12 +303,7 @@ impl Explorer {
     }
 
     fn handle_supported_resources_request(&mut self) -> Result<bool, String> {
-        if let Some(list) = self.planet_stats.resources() {
-            self.to_orchestrator(ExplorerToOrchestrator::SupportedResourceResult {
-                explorer_id: self.id,
-                supported_resources: list.clone(),
-            })?;
-        } else if !self.pending_resource_request {
+        if !self.pending_resource_request {
             // Only request from planet if we're not already waiting for a response
             self.pending_resource_request = true;
             self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
@@ -320,12 +316,7 @@ impl Explorer {
     }
 
     fn handle_supported_combination_request(&mut self) -> Result<bool, String> {
-        if let Some(list) = self.planet_stats.combinations() {
-            self.to_orchestrator(ExplorerToOrchestrator::SupportedCombinationResult {
-                explorer_id: self.id,
-                combination_list: list.clone(),
-            })?;
-        } else if !self.pending_combination_request {
+        if !self.pending_combination_request {
             // Only request from planet if we're not already waiting for a response
             self.pending_combination_request = true;
             self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
@@ -441,7 +432,6 @@ impl Explorer {
             explorer_id : self.id,
             performance : self.brain.performance(),
             bag_content : format!("{:?}", self.brain.bag_content()),
-            path : format!("{:?}", self.path)
         ));
         self.pending_resource_request = false;
         self.pending_combination_request = false;

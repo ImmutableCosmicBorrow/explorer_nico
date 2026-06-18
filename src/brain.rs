@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{galaxy_map::GalaxyMap, payload, resources::{BASIC_RESOURCE_WEIGHT, COMPLEX_RESOURCE_WEIGHT, build_bag_vector}, vector::Vec10};
+use crate::{galaxy_map::GalaxyMap, resources::{build_bag_vector}, vector::Vec10};
 use common_explorer::{ExplorerBag, ExplorerBagContent};
 use common_game::{
     components::resource::{
@@ -11,8 +11,7 @@ use common_game::{
     },
     utils::ID,
 };
-use crate::logging_utils::log_error;
-use crate::resources::{build_capabilities, build_crafting_vector};
+use crate::resources::{build_crafting_vector, resource_value};
 
 #[derive(Debug)]
 pub(crate) enum Intention {
@@ -22,16 +21,16 @@ pub(crate) enum Intention {
 }
 
 const INITIAL_NEEDS: [u64; 10] = [
-    2,  // Carbon
-    2,  // Hydrogen
-    2,  // Oxygen
-    2,  // Silicon
+    4,  // Carbon
+    4,  // Hydrogen
+    4,  // Oxygen
+    4,  // Silicon
     3,  // Diamond
-    2,  // Water
-    2,  // Life
-    2,  // Robot
-    2,  // Dolphin
-    6, // AI Partner
+    3,  // Water
+    3,  // Life
+    3,  // Robot
+    4,  // Dolphin
+    5, // AI Partner
 ];
 
 const LAST_SUCCESS_TIMEOUT_MULTIPLIER: u32 = 6;
@@ -40,7 +39,7 @@ pub struct Brain {
     bag: ExplorerBag,
     needs: Vec10,
     galaxy_map: GalaxyMap,
-    performance: u32,
+    performance: u64,
     game_step: Duration,
     last_success: Instant,
 }
@@ -64,21 +63,17 @@ impl Brain {
     }
 
     /// Returns the performance score
-    pub(crate) fn performance(&self) -> u32 {
+    pub(crate) fn performance(&self) -> u64 {
         self.performance
     }
 
     /// Inserts a resource into the bag and updates the performance score and the needs
     pub(crate) fn insert_resource(&mut self, resource: GenericResource) {
-        self.performance += match resource {
-            GenericResource::BasicResources(_) => BASIC_RESOURCE_WEIGHT,
-            GenericResource::ComplexResources(_) => COMPLEX_RESOURCE_WEIGHT,
-        };
+        self.performance += resource_value(resource.get_type());
         // Update needs based on the inserted resource
         self.needs.decrease_need(&resource);
         // Update last success
         //self.last_success = Instant::now();
-
         self.bag.insert(resource);
     }
 
@@ -86,7 +81,6 @@ impl Brain {
     pub(crate) fn reinsert_resource(&mut self, resource: GenericResource) {
         // Update needs based on the inserted resource
         self.needs.decrease_need(&resource);
-
         self.bag.insert(resource);
     }
 
@@ -103,33 +97,33 @@ impl Brain {
         request
     }
 
-    /// Updates Planet basic resources in the GalaxyMap
+    /// Updates Planet basic resources in the `GalaxyMap`
     pub(crate) fn set_planet_basic_resources(
         &mut self,
         planet_id: ID,
-        resources: HashSet<BasicResourceType>,
+        resources: &HashSet<BasicResourceType>,
     ) {
         self.galaxy_map
             .set_planet_basic_resources(planet_id, resources);
     }
 
-    /// Updates Planet complex resources in the GalaxyMap
+    /// Updates Planet complex resources in the `GalaxyMap`
     pub(crate) fn set_planet_complex_resources(
         &mut self,
         planet_id: ID,
-        resources: HashSet<ComplexResourceType>,
+        resources: &HashSet<ComplexResourceType>,
     ) {
         self.galaxy_map
             .set_planet_complex_resources(planet_id, resources);
     }
 
-    /// Updates Planet neighbors in the GalaxyMap
+    /// Updates Planet neighbors in the `GalaxyMap`
     pub(crate) fn set_planet_neighbors(&mut self, planet_id: ID, neighbors: Vec<ID>) {
         self.galaxy_map.set_planet_neighbors(planet_id, neighbors);
     }
 
     /// Resets last success on move
-    pub(crate) fn on_move(&mut self, id: ID) {
+    pub(crate) fn on_move(&mut self) {
         self.last_success = Instant::now();
     }
 
@@ -177,7 +171,7 @@ impl Brain {
 
     /// Generates a Move Intention by choosing where to move
     fn generate_move_intention(&mut self, current_planet: ID) -> Intention {
-        let neighbors = self.galaxy_map.planet_neighbors(current_planet).to_vec();
+        let neighbors = self.galaxy_map.planet_neighbors(current_planet).clone();
         if neighbors.is_empty() {
             return Intention::Move(None);
         }
