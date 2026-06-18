@@ -20,7 +20,6 @@ impl Explorer {
                 }
                 self.brain
                     .set_planet_basic_resources(self.planet_stats.id().unwrap_or(0), &resource_list);
-                self.planet_stats.update_resources(resource_list);
 
             }
             PlanetToExplorer::SupportedCombinationResponse { combination_list } => {
@@ -35,8 +34,6 @@ impl Explorer {
                     self.planet_stats.id().unwrap_or(0),
                     &combination_list,
                 );
-                self.planet_stats
-                    .update_combinations(combination_list);
             }
             PlanetToExplorer::GenerateResourceResponse { resource } => {
                 let generated = if let Some(r) = resource {

@@ -40,6 +40,8 @@ impl Explorer {
                 explorer_id: self.id,
                 current_planet_id: planet_id,
             })?;
+        } else {
+            self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest { explorer_id: self.id, current_planet_id: self.planet_stats.id().expect("Nico is not in a Planet") })?;
         }
 
         Ok(false)
