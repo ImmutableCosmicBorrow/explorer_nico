@@ -24,7 +24,6 @@ pub struct Explorer {
     planet_receiver: Receiver<PlanetToExplorer>,
     game_step: Duration,
     manual_mode: bool,
-    path: Vec<ID>,
 }
 
 impl Explorer {
@@ -55,7 +54,6 @@ impl Explorer {
             planet_stats: PlanetStats::new(),
             game_step,
             manual_mode: true,
-            path: Vec::new(),
         }
     }
 }

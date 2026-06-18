@@ -74,10 +74,9 @@ impl Explorer {
     /// Returns an error if any send of a message fails.
     /// Otherwise, returns `Ok(false)`, indicating that the Explorer has not been killed.
     pub(crate) fn reset(&mut self) -> Result<bool, String> {
-        // TODO: actually reset AI
+        self.brain.reset();
         self.manual_mode = true;
-        self.path.clear();
-        self.brain.reset_needs();
+
         self.to_orchestrator(ExplorerToOrchestrator::ResetExplorerAIResult {
             explorer_id: self.id,
         })?;
@@ -138,7 +137,6 @@ impl Explorer {
             performance : self.brain.performance(),
             bag_content : format!("{:?}", self.brain.bag_content()),
         ));
-        self.path.clear();
         self.to_orchestrator(ExplorerToOrchestrator::KillExplorerResult {
             explorer_id: self.id,
         })?;

@@ -43,6 +43,14 @@ impl Brain {
         }
     }
 
+    pub(crate) fn reset(&mut self) {
+        self.bag = ExplorerBag::new();
+        self.needs = ResourceVector::new(INITIAL_NEEDS);
+        self.galaxy_map = GalaxyMap::new();
+        self.performance = 0;
+        self.last_success = Instant::now();
+    }
+
     /// Returns the content of the bag
     pub(crate) fn bag_content(&self) -> ExplorerBagContent {
         self.bag.to_content()

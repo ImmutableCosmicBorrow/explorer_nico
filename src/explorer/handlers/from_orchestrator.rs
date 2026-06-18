@@ -8,55 +8,6 @@ use common_game::utils::ID;
 use crossbeam_channel::Sender;
 
 impl Explorer {
-    /// Tries to move to a new Planet. This succeeds if `new_sender` is `Some`.
-    ///
-    /// Returns an error if any send of a message fails.
-    /// Otherwise, returns `Ok(false)` indicating that the Explorer has not been killed.
-    pub(crate) fn try_move_to(
-        &mut self,
-        planet_id: ID,
-        new_sender: Option<Sender<ExplorerToPlanet>>,
-    ) -> Result<bool, String> {
-        // Tell the Orchestrator the result
-        self.to_orchestrator(ExplorerToOrchestrator::MovedToPlanetResult {
-            explorer_id: self.id,
-            planet_id,
-        })?;
-        self.brain.on_move();
-
-        // Move only if the sender is Some
-        if let Some(sender) = new_sender {
-            self.path.push(planet_id);
-
-            // Reset the Planet stats and update id and sender.
-            self.planet_stats.update_planet(planet_id, sender);
-
-            if !self.manual_mode {
-                // Ask Planet for its supported resources and combinations
-                self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
-                    explorer_id: self.id,
-                })?;
-
-                self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
-                    explorer_id: self.id,
-                })?;
-            }
-
-            // Ask Orchestrator for neighbors of the current Planet
-            self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
-                explorer_id: self.id,
-                current_planet_id: planet_id,
-            })?;
-        } else {
-            self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
-                explorer_id: self.id,
-                current_planet_id: self.planet_stats.id().expect("Nico is not in a Planet"),
-            })?;
-        }
-
-        Ok(false)
-    }
-
     /// Handles the received Orchestrator message.
     ///
     /// Returns an error if any send of a message fails.
@@ -131,18 +82,60 @@ impl Explorer {
                 Ok(false)
             }
             OrchestratorToExplorer::NeighborsResponse { neighbors } => {
-                /* TODO
-                if neighbors.is_empty() {
-                    self.brain.got_blocked();
-                } else {
-                    self.brain.unblock();
-                }*/
                 self.planet_stats.update_neighbors(neighbors.clone());
                 self.brain
                     .set_planet_neighbors(self.planet_stats.id().unwrap_or(0), neighbors);
                 Ok(false)
             }
         }
+    }
+
+    /// Tries to move to a new Planet. This succeeds if `new_sender` is `Some`.
+    ///
+    /// Returns an error if any send of a message fails.
+    /// Otherwise, returns `Ok(false)` indicating that the Explorer has not been killed.
+    pub(crate) fn try_move_to(
+        &mut self,
+        planet_id: ID,
+        new_sender: Option<Sender<ExplorerToPlanet>>,
+    ) -> Result<bool, String> {
+        // Tell the Orchestrator the result
+        self.to_orchestrator(ExplorerToOrchestrator::MovedToPlanetResult {
+            explorer_id: self.id,
+            planet_id,
+        })?;
+        self.brain.on_move();
+
+        // Move only if the sender is Some
+        if let Some(sender) = new_sender {
+            // Reset the Planet stats and update id and sender.
+            self.planet_stats.update_planet(planet_id, sender);
+
+            if !self.manual_mode {
+                // Ask Planet for its supported resources and combinations
+                self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
+                    explorer_id: self.id,
+                })?;
+
+                self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
+                    explorer_id: self.id,
+                })?;
+            }
+
+            // Ask Orchestrator for neighbors of the current Planet
+            self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
+                explorer_id: self.id,
+                current_planet_id: planet_id,
+            })?;
+        } else {
+            // Ask for neighbors again, since a Planet might have been killed
+            self.to_orchestrator(ExplorerToOrchestrator::NeighborsRequest {
+                explorer_id: self.id,
+                current_planet_id: self.planet_stats.id().expect("Nico is not in a Planet"),
+            })?;
+        }
+
+        Ok(false)
     }
 
     /// Handles a `SupportedResourceRequest`
