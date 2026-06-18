@@ -90,6 +90,15 @@ mod tests {
                 explorer.run().expect("Explorer thread panicked");
             });
 
+            // Send StartExplorerAI
+            tx_ote
+                .send(OrchestratorToExplorer::StartExplorerAI{})
+                .expect("Error while sending to the Explorer");
+            // Explorer should respond with StopExplorerAIResult
+            let response = rx_eto.recv().expect("Error while receiving from Explorer");
+            let expected: ExplorerToOrchestrator<ExplorerBagContent> = ExplorerToOrchestrator::StartExplorerAIResult {explorer_id: EXPLORER_ID, };
+            assert_eq!(format!("{response:?}"), format!("{expected:?}"));
+
             // 3. Send MoveToPlanet
             tx_ote
                 .send(OrchestratorToExplorer::MoveToPlanet {

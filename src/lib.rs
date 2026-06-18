@@ -5,5 +5,6 @@ mod logging_utils;
 mod planet_stats;
 mod resources;
 mod vector;
+mod config;
 
 pub use explorer::Explorer;

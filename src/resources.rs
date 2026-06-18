@@ -1,24 +1,9 @@
 use common_explorer::ExplorerBag;
 use common_game::components::resource::{BasicResourceType, ComplexResourceType, ResourceType};
-
+use crate::config::{BASIC_RESOURCE_WEIGHT, COMPLEX_RESOURCE_WEIGHT, RESOURCES};
 use crate::vector::Vec10;
 
-pub(crate) const BASIC_RESOURCE_WEIGHT: u64 = 10;
-pub(crate) const COMPLEX_RESOURCE_WEIGHT: u64 = 15;
 
-/// All resources, ordered.
-pub const RESOURCES: [ResourceType; 10] = [
-    ResourceType::Basic(BasicResourceType::Carbon),
-    ResourceType::Basic(BasicResourceType::Hydrogen),
-    ResourceType::Basic(BasicResourceType::Oxygen),
-    ResourceType::Basic(BasicResourceType::Silicon),
-    ResourceType::Complex(ComplexResourceType::Diamond),
-    ResourceType::Complex(ComplexResourceType::Water),
-    ResourceType::Complex(ComplexResourceType::Life),
-    ResourceType::Complex(ComplexResourceType::Robot),
-    ResourceType::Complex(ComplexResourceType::Dolphin),
-    ResourceType::Complex(ComplexResourceType::AIPartner),
-];
 
 /// Index for each resource type
 pub fn resource_index(resource: ResourceType) -> usize {

@@ -11,6 +11,7 @@ use common_game::{
     },
     utils::ID,
 };
+use crate::config::{INITIAL_NEEDS, LAST_SUCCESS_TIMEOUT_MULTIPLIER};
 use crate::resources::{build_crafting_vector, resource_value};
 
 #[derive(Debug)]
@@ -20,20 +21,7 @@ pub(crate) enum Intention {
     Move(Option<ID>),
 }
 
-const INITIAL_NEEDS: [u64; 10] = [
-    4,  // Carbon
-    4,  // Hydrogen
-    4,  // Oxygen
-    4,  // Silicon
-    3,  // Diamond
-    3,  // Water
-    3,  // Life
-    3,  // Robot
-    4,  // Dolphin
-    5, // AI Partner
-];
 
-const LAST_SUCCESS_TIMEOUT_MULTIPLIER: u32 = 6;
 
 pub struct Brain {
     bag: ExplorerBag,
