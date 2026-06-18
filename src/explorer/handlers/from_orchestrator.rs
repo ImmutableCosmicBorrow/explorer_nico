@@ -103,7 +103,12 @@ impl Explorer {
             }
             OrchestratorToExplorer::CombineResourceRequest { to_generate } => {
                 if self.manual_mode {
-                    self.brain.set_needs(ResourceType::Complex(to_generate));
+
+                    if to_generate.is_aipartner() {
+                        self.brain.reset_needs();
+                    } else {
+                        self.brain.set_needs(ResourceType::Complex(to_generate));
+                    }
 
                     if let Some(request) = self.brain.try_combination_request(to_generate) {
                         self.to_planet(ExplorerToPlanet::CombineResourceRequest {
