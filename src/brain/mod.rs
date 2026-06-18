@@ -262,7 +262,7 @@ mod tests {
         let intention = brain.think(planet_id);
 
         match intention {
-            Intention::Move(Some(1)) => {},
+            Intention::Move(Some(1)) => {}
             _ => panic!("Expected Move(Some(1)) intention when Planet has no capabilities"),
         }
     }
@@ -280,8 +280,10 @@ mod tests {
         let intention = brain.think(planet_id);
 
         match intention {
-            Intention::Move(None) => {},
-            _ => panic!("Expected Move(None) intention when Planet has no capabilities and no neighbors"),
+            Intention::Move(None) => {}
+            _ => panic!(
+                "Expected Move(None) intention when Planet has no capabilities and no neighbors"
+            ),
         }
     }
 
@@ -301,8 +303,10 @@ mod tests {
         let intention = brain.think(planet_id);
 
         match intention {
-            Intention::Generate(Some(BasicResourceType::Carbon)) => {},
-            _ => panic!("Expected Generate(Some(BasicResourceTye::Carbon)) intention when Planet has capability"),
+            Intention::Generate(Some(BasicResourceType::Carbon)) => {}
+            _ => panic!(
+                "Expected Generate(Some(BasicResourceTye::Carbon)) intention when Planet has capability"
+            ),
         }
     }
 }

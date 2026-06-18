@@ -183,17 +183,17 @@ impl Explorer {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-    use std::thread;
-    use std::time::Duration;
+    use super::*;
     use common_explorer::{ExplorerAI, ExplorerBag, ExplorerBagContent};
     use common_game::components::resource::{BasicResourceType, ComplexResourceType};
     use common_game::protocols::planet_explorer::PlanetToExplorer;
     use crossbeam_channel::unbounded;
-    use super::*;
+    use std::collections::HashSet;
+    use std::thread;
+    use std::time::Duration;
 
-    const EXPLORER_ID : u32 = 1;
-    const PLANET_ID : u32 = 2;
+    const EXPLORER_ID: u32 = 1;
+    const PLANET_ID: u32 = 2;
 
     #[test]
     fn test_bag_content_request() {
@@ -236,16 +236,25 @@ mod tests {
 
         // 4.5 Explorer asks neighbors
         let response = rx_eto.recv().expect("Error while receiving from Explorer");
-        let expected: ExplorerToOrchestrator<ExplorerBagContent> = ExplorerToOrchestrator::NeighborsRequest {explorer_id: EXPLORER_ID, current_planet_id : PLANET_ID};
+        let expected: ExplorerToOrchestrator<ExplorerBagContent> =
+            ExplorerToOrchestrator::NeighborsRequest {
+                explorer_id: EXPLORER_ID,
+                current_planet_id: PLANET_ID,
+            };
         assert_eq!(format!("{response:?}"), format!("{expected:?}"));
 
         // 5. Orchestrator asks for bag content
         tx_ote
-            .send(OrchestratorToExplorer::BagContentRequest).expect("Error while sending to the Explorer");
+            .send(OrchestratorToExplorer::BagContentRequest)
+            .expect("Error while sending to the Explorer");
 
         // 6. Explorer responds with an empty set
         let response = rx_eto.recv().expect("Error while receiving from Explorer");
-        let expected: ExplorerToOrchestrator<ExplorerBagContent> = ExplorerToOrchestrator::BagContentResponse { explorer_id: EXPLORER_ID, bag_content: ExplorerBag::new().to_content() };
+        let expected: ExplorerToOrchestrator<ExplorerBagContent> =
+            ExplorerToOrchestrator::BagContentResponse {
+                explorer_id: EXPLORER_ID,
+                bag_content: ExplorerBag::new().to_content(),
+            };
         assert_eq!(format!("{response:?}"), format!("{expected:?}"));
 
         // Last-2. Send Kill
@@ -306,26 +315,41 @@ mod tests {
 
         // 4.5 Explorer asks neighbors
         let response = rx_eto.recv().expect("Error while receiving from Explorer");
-        let expected: ExplorerToOrchestrator<ExplorerBagContent> = ExplorerToOrchestrator::NeighborsRequest {explorer_id: EXPLORER_ID, current_planet_id : PLANET_ID};
+        let expected: ExplorerToOrchestrator<ExplorerBagContent> =
+            ExplorerToOrchestrator::NeighborsRequest {
+                explorer_id: EXPLORER_ID,
+                current_planet_id: PLANET_ID,
+            };
         assert_eq!(format!("{response:?}"), format!("{expected:?}"));
 
         // 5. Send SupportedCombinationRequest
         tx_ote
-            .send(OrchestratorToExplorer::SupportedCombinationRequest{}).expect("Error while sending to the Explorer");
+            .send(OrchestratorToExplorer::SupportedCombinationRequest {})
+            .expect("Error while sending to the Explorer");
 
         // 6. Explorer asks Planet supported combinations
         let request = rx_etp.recv().expect("Error while receiving from Explorer");
-        let expected: ExplorerToPlanet = ExplorerToPlanet::SupportedCombinationRequest { explorer_id: EXPLORER_ID };
+        let expected: ExplorerToPlanet = ExplorerToPlanet::SupportedCombinationRequest {
+            explorer_id: EXPLORER_ID,
+        };
         assert_eq!(format!("{request:?}"), format!("{expected:?}"));
 
         // 7. Planet responds to the explorer
         let mut resources = HashSet::new();
         resources.insert(ComplexResourceType::Diamond);
-        tx_pte.send(PlanetToExplorer::SupportedCombinationResponse { combination_list: resources.clone() }).expect("Error while sending to the Explorer");
+        tx_pte
+            .send(PlanetToExplorer::SupportedCombinationResponse {
+                combination_list: resources.clone(),
+            })
+            .expect("Error while sending to the Explorer");
 
         // 8. Explorer responds to the Orchestrator with the resource list
         let response = rx_eto.recv().expect("Error while receiving from Explorer");
-        let expected: ExplorerToOrchestrator<ExplorerBagContent> = ExplorerToOrchestrator::SupportedCombinationResult { explorer_id : EXPLORER_ID, combination_list: resources };
+        let expected: ExplorerToOrchestrator<ExplorerBagContent> =
+            ExplorerToOrchestrator::SupportedCombinationResult {
+                explorer_id: EXPLORER_ID,
+                combination_list: resources,
+            };
         assert_eq!(format!("{response:?}"), format!("{expected:?}"));
 
         // Last-2. Send Kill
@@ -386,26 +410,41 @@ mod tests {
 
         // 4.5 Explorer asks neighbors
         let response = rx_eto.recv().expect("Error while receiving from Explorer");
-        let expected: ExplorerToOrchestrator<ExplorerBagContent> = ExplorerToOrchestrator::NeighborsRequest {explorer_id: EXPLORER_ID, current_planet_id : PLANET_ID};
+        let expected: ExplorerToOrchestrator<ExplorerBagContent> =
+            ExplorerToOrchestrator::NeighborsRequest {
+                explorer_id: EXPLORER_ID,
+                current_planet_id: PLANET_ID,
+            };
         assert_eq!(format!("{response:?}"), format!("{expected:?}"));
 
         // 5. Send SupportedResourceRequest
         tx_ote
-            .send(OrchestratorToExplorer::SupportedResourceRequest{}).expect("Error while sending to the Explorer");
+            .send(OrchestratorToExplorer::SupportedResourceRequest {})
+            .expect("Error while sending to the Explorer");
 
         // 6. Explorer asks Planet supported resources
         let request = rx_etp.recv().expect("Error while receiving from Explorer");
-        let expected: ExplorerToPlanet = ExplorerToPlanet::SupportedResourceRequest { explorer_id: EXPLORER_ID };
+        let expected: ExplorerToPlanet = ExplorerToPlanet::SupportedResourceRequest {
+            explorer_id: EXPLORER_ID,
+        };
         assert_eq!(format!("{request:?}"), format!("{expected:?}"));
 
         // 7. Planet responds to the explorer
         let mut resources = HashSet::new();
         resources.insert(BasicResourceType::Carbon);
-        tx_pte.send(PlanetToExplorer::SupportedResourceResponse { resource_list: resources.clone() }).expect("Error while sending to the Explorer");
+        tx_pte
+            .send(PlanetToExplorer::SupportedResourceResponse {
+                resource_list: resources.clone(),
+            })
+            .expect("Error while sending to the Explorer");
 
         // 8. Explorer responds to the Orchestrator with the resource list
         let response = rx_eto.recv().expect("Error while receiving from Explorer");
-        let expected: ExplorerToOrchestrator<ExplorerBagContent> = ExplorerToOrchestrator::SupportedResourceResult { explorer_id : EXPLORER_ID, supported_resources: resources };
+        let expected: ExplorerToOrchestrator<ExplorerBagContent> =
+            ExplorerToOrchestrator::SupportedResourceResult {
+                explorer_id: EXPLORER_ID,
+                supported_resources: resources,
+            };
         assert_eq!(format!("{response:?}"), format!("{expected:?}"));
 
         // Last-2. Send Kill

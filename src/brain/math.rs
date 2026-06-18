@@ -194,23 +194,43 @@ mod tests {
 
         resources.insert(BasicResourceType::Carbon);
         vec.set_basic(&resources);
-        assert_eq!(vec.0, [1,0,0,0,0,0,0,0,0,0], "Setting basic resources failed");
+        assert_eq!(
+            vec.0,
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            "Setting basic resources failed"
+        );
 
         resources.insert(BasicResourceType::Hydrogen);
         vec.set_basic(&resources);
-        assert_eq!(vec.0, [1,1,0,0,0,0,0,0,0,0], "Setting basic resources failed");
+        assert_eq!(
+            vec.0,
+            [1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+            "Setting basic resources failed"
+        );
 
         resources.insert(BasicResourceType::Oxygen);
         vec.set_basic(&resources);
-        assert_eq!(vec.0, [1,1,1,0,0,0,0,0,0,0], "Setting basic resources failed");
+        assert_eq!(
+            vec.0,
+            [1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+            "Setting basic resources failed"
+        );
 
         resources.insert(BasicResourceType::Silicon);
         vec.set_basic(&resources);
-        assert_eq!(vec.0, [1,1,1,1,0,0,0,0,0,0], "Setting basic resources failed");
+        assert_eq!(
+            vec.0,
+            [1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+            "Setting basic resources failed"
+        );
 
         resources.remove(&BasicResourceType::Hydrogen);
         vec.set_basic(&resources);
-        assert_eq!(vec.0, [1,0,1,1,0,0,0,0,0,0], "Setting basic resources failed");
+        assert_eq!(
+            vec.0,
+            [1, 0, 1, 1, 0, 0, 0, 0, 0, 0],
+            "Setting basic resources failed"
+        );
     }
 
     #[test]
@@ -221,60 +241,95 @@ mod tests {
 
         resources.insert(ComplexResourceType::Diamond);
         vec.set_complex(&resources);
-        assert_eq!(vec.0, [0,0,0,0,1,0,0,0,0,0], "Setting complex resources failed");
+        assert_eq!(
+            vec.0,
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+            "Setting complex resources failed"
+        );
 
         resources.insert(ComplexResourceType::Water);
         vec.set_complex(&resources);
-        assert_eq!(vec.0, [0,0,0,0,1,1,0,0,0,0], "Setting complex resources failed");
+        assert_eq!(
+            vec.0,
+            [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+            "Setting complex resources failed"
+        );
 
         resources.insert(ComplexResourceType::Life);
         vec.set_complex(&resources);
-        assert_eq!(vec.0, [0,0,0,0,1,1,1,0,0,0], "Setting complex resources failed");
+        assert_eq!(
+            vec.0,
+            [0, 0, 0, 0, 1, 1, 1, 0, 0, 0],
+            "Setting complex resources failed"
+        );
 
         resources.insert(ComplexResourceType::Robot);
         vec.set_complex(&resources);
-        assert_eq!(vec.0, [0,0,0,0,1,1,1,1,0,0], "Setting complex resources failed");
+        assert_eq!(
+            vec.0,
+            [0, 0, 0, 0, 1, 1, 1, 1, 0, 0],
+            "Setting complex resources failed"
+        );
 
         resources.insert(ComplexResourceType::Dolphin);
         vec.set_complex(&resources);
-        assert_eq!(vec.0, [0,0,0,0,1,1,1,1,1,0], "Setting complex resources failed");
+        assert_eq!(
+            vec.0,
+            [0, 0, 0, 0, 1, 1, 1, 1, 1, 0],
+            "Setting complex resources failed"
+        );
 
         resources.insert(ComplexResourceType::AIPartner);
         vec.set_complex(&resources);
-        assert_eq!(vec.0, [0,0,0,0,1,1,1,1,1,1], "Setting complex resources failed");
+        assert_eq!(
+            vec.0,
+            [0, 0, 0, 0, 1, 1, 1, 1, 1, 1],
+            "Setting complex resources failed"
+        );
 
         resources.remove(&ComplexResourceType::Dolphin);
         vec.set_complex(&resources);
-        assert_eq!(vec.0, [0,0,0,0,1,1,1,1,0,1], "Setting complex resources failed");
+        assert_eq!(
+            vec.0,
+            [0, 0, 0, 0, 1, 1, 1, 1, 0, 1],
+            "Setting complex resources failed"
+        );
     }
 
     #[test]
-    fn test_softmax_sample_with_all_zeros_but_one(){
-        let vec = ResourceVector([0,0,0,0,0,1,0,0,0,0]);
+    fn test_softmax_sample_with_all_zeros_but_one() {
+        let vec = ResourceVector([0, 0, 0, 0, 0, 1, 0, 0, 0, 0]);
 
         for _ in 0..20 {
             let sample = vec.softmax_sample(10.0);
-            assert_eq!(5, sample, "Sample returned index which is zero in the vector");
+            assert_eq!(
+                5, sample,
+                "Sample returned index which is zero in the vector"
+            );
         }
     }
 
     #[test]
-    fn test_dot_product(){
-        let vec1 = ResourceVector([10,0,5,1,1,0,0,0,1,0]);
-        let vec2 = ResourceVector([1,5,1,10,0,0,0,1,0,10]);
+    fn test_dot_product() {
+        let vec1 = ResourceVector([10, 0, 5, 1, 1, 0, 0, 0, 1, 0]);
+        let vec2 = ResourceVector([1, 5, 1, 10, 0, 0, 0, 1, 0, 10]);
 
         let dot = vec1.dot(&vec2);
 
-        assert_eq!(dot, 10+5+10, "Dot product failed");
+        assert_eq!(dot, 10 + 5 + 10, "Dot product failed");
     }
 
     #[test]
-    fn test_elementwise_mul(){
-        let vec1 = ResourceVector([10,0,5,1,1,0,0,0,1,0]);
-        let vec2 = ResourceVector([1,5,1,10,0,0,0,1,0,10]);
+    fn test_elementwise_mul() {
+        let vec1 = ResourceVector([10, 0, 5, 1, 1, 0, 0, 0, 1, 0]);
+        let vec2 = ResourceVector([1, 5, 1, 10, 0, 0, 0, 1, 0, 10]);
 
         let elementwise = vec1 * vec2;
 
-        assert_eq!(elementwise.0, [10,0,5,10,0,0,0,0,0,0], "Elementwise mul failed");
+        assert_eq!(
+            elementwise.0,
+            [10, 0, 5, 10, 0, 0, 0, 0, 0, 0],
+            "Elementwise mul failed"
+        );
     }
 }
