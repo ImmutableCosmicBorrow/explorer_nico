@@ -244,3 +244,65 @@ impl Brain {
         self.last_success.elapsed() > self.game_step * LAST_SUCCESS_TIMEOUT_MULTIPLIER
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_think_returns_move_when_no_planet_capabilities() {
+        let game_step = Duration::from_millis(1000);
+        let mut brain = Brain::new(game_step);
+        let planet_id = 1;
+
+        brain.set_planet_basic_resources(planet_id, HashSet::new());
+        brain.set_planet_complex_resources(planet_id, HashSet::new());
+        brain.set_planet_neighbors(planet_id, Vec::from([1]));
+
+        let intention = brain.think(planet_id);
+
+        match intention {
+            Intention::Move(Some(1)) => {},
+            _ => panic!("Expected Move(Some(1)) intention when Planet has no capabilities"),
+        }
+    }
+
+    #[test]
+    fn test_think_returns_move_none_when_no_planet_capabilities_and_neighbors() {
+        let game_step = Duration::from_millis(1000);
+        let mut brain = Brain::new(game_step);
+        let planet_id = 1;
+
+        brain.set_planet_basic_resources(planet_id, HashSet::new());
+        brain.set_planet_complex_resources(planet_id, HashSet::new());
+        brain.set_planet_neighbors(planet_id, Vec::new());
+
+        let intention = brain.think(planet_id);
+
+        match intention {
+            Intention::Move(None) => {},
+            _ => panic!("Expected Move(None) intention when Planet has no capabilities and no neighbors"),
+        }
+    }
+
+    #[test]
+    fn test_think_returns_generate_carbon_when_in_capabilities() {
+        let game_step = Duration::from_millis(1000);
+        let mut brain = Brain::new(game_step);
+        let planet_id = 1;
+
+        let mut basics = HashSet::new();
+        basics.insert(BasicResourceType::Carbon);
+
+        brain.set_planet_basic_resources(planet_id, basics);
+        brain.set_planet_complex_resources(planet_id, HashSet::new());
+        brain.set_planet_neighbors(planet_id, Vec::new());
+
+        let intention = brain.think(planet_id);
+
+        match intention {
+            Intention::Generate(Some(BasicResourceType::Carbon)) => {},
+            _ => panic!("Expected Generate(Some(BasicResourceTye::Carbon)) intention when Planet has capability"),
+        }
+    }
+}
