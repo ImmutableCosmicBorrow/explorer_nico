@@ -144,6 +144,7 @@ impl Explorer {
     /// Otherwise, returns `Ok(false)` indicating that the Explorer has not been killed.
     fn handle_supported_resources_request(&mut self) -> Result<bool, String> {
         if self.manual_mode {
+            self.pending_resources_request = true;
             self.to_planet(ExplorerToPlanet::SupportedResourceRequest {
                 explorer_id: self.id,
             })?;
@@ -165,6 +166,7 @@ impl Explorer {
     /// Otherwise, returns `Ok(false)` indicating that the Explorer has not been killed.
     fn handle_supported_combination_request(&mut self) -> Result<bool, String> {
         if self.manual_mode {
+            self.pending_combinations_request = true;
             self.to_planet(ExplorerToPlanet::SupportedCombinationRequest {
                 explorer_id: self.id,
             })?;

@@ -24,6 +24,8 @@ pub struct Explorer {
     planet_receiver: Receiver<PlanetToExplorer>,
     game_step: Duration,
     manual_mode: bool,
+    pending_resources_request: bool,
+    pending_combinations_request: bool,
 }
 
 impl Explorer {
@@ -54,6 +56,8 @@ impl Explorer {
             planet_stats: PlanetStats::new(),
             game_step,
             manual_mode: true,
+            pending_resources_request : false,
+            pending_combinations_request: false,
         }
     }
 }
